@@ -1,0 +1,33 @@
+/* phone-input-overrides.css */
+.PhoneInput {
+  display: flex;
+  align-items: center;
+}
+
+.PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.PhoneInputCountrySelect {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.PhoneInputCountryIcon {
+  width: 24px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+.PhoneInputInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 1rem;
+}

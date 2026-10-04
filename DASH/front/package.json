@@ -1,0 +1,25 @@
+{
+  "name": "thenith-admin-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port=3001 --host=127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host=127.0.0.1 --port=3001"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "axios": "^1.20.0",
+    "framer-motion": "^13.2.0",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-router-dom": "^7.18.3",
+    "recharts": "^3.10.1",
+    "socket.io-client": "^4.8.3",
+    "tailwindcss": "^4.1.14",
+    "vite": "^6.2.3"
+  }
+}

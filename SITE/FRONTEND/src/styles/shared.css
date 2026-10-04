@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--app-font, "Poppins"), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --app-font: "Poppins", "Rubik";
+}
+
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html[lang="ar"] {
+  --app-font: "Poppins", "Rubik";
+}
+
+html[lang="ar"] body,
+html[lang="en"] body {
+  font-family: var(--app-font), sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f8fafc;
+  color: #0f172a;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+::-webkit-scrollbar {
+  display: none !important;
+}
+
+.dark body {
+  background-color: #080c14;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(20, 30, 55, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.2) 0px, transparent 50%);
+  color: #f8fafc;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(241, 245, 249, 0.9);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.profile-gradient {
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 35%, rgba(255, 255, 255, 0) 100%);
+}
+
+.dark .profile-gradient {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 50%, rgba(8, 12, 20, 0) 100%);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.transition-all-300 {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* SweetAlert2 Glassmorphism Override for SITE */
+div:where(.swal2-container) div:where(.swal2-popup) {
+  background: #ffffff !important;
+  
+   border: none !important;
+  border-radius: 28px !important; 
+  width: 22em !important; 
+  max-width: 90vw !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08) !important;
+  padding: 1.5rem !important;
+}
+
+.dark div:where(.swal2-container) div:where(.swal2-popup) {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
+  color: #f8fafc !important;
+}
+
+div:where(.swal2-container) .swal2-title {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  font-family: var(--app-font), sans-serif !important;
+}
+
+.dark div:where(.swal2-container) .swal2-title, 
+.dark div:where(.swal2-container) .swal2-html-container {
+  color: #f8fafc !important;
+}
+
+div:where(.swal2-container) .swal2-html-container {
+  font-size: 0.95rem !important;
+  font-family: var(--app-font), sans-serif !important;
+}
+
+div:where(.swal2-container) .swal2-confirm {
+  border-radius: 14px !important;
+  font-family: var(--app-font), sans-serif !important;
+  padding: 10px 24px !important;
+  font-weight: 600 !important;
+}
+
+div:where(.swal2-container) .swal2-cancel {
+  border-radius: 14px !important;
+  font-family: var(--app-font), sans-serif !important;
+  padding: 10px 24px !important;
+  font-weight: 600 !important;
+}
+
+/* React Hot Toast Override */
+.glass-toast {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+  font-family: var(--app-font), sans-serif !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  max-width: min(420px, calc(100vw - 32px)) !important;
+}
+
+.dark .glass-toast {
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+.glass-toast-error {
+  border-color: #fecdd3 !important;
+}
+
+.dark .glass-toast-error {
+  border-color: rgba(244, 63, 94, 0.45) !important;
+}
+
+body.loading-screen-active .global-support-widget {
+  display: none !important;
+}
+

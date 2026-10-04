@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--app-font, "Poppins"), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  --app-font: "Poppins", "Rubik";
+}
+
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html[lang="ar"] {
+  --app-font: "Poppins", "Rubik";
+}
+
+html[lang="ar"] body,
+html[lang="en"] body {
+  font-family: var(--app-font), sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f8fafc;
+  color: #0f172a;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+::-webkit-scrollbar {
+  display: none !important;
+}
+
+.dark body {
+  background-color: #080c14;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(20, 30, 55, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.2) 0px, transparent 50%);
+  color: #f8fafc;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(241, 245, 249, 0.9);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.profile-gradient {
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 35%, rgba(255, 255, 255, 0) 100%);
+}
+
+.dark .profile-gradient {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 50%, rgba(8, 12, 20, 0) 100%);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.transition-all-300 {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

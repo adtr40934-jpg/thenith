@@ -1,0 +1,181 @@
+import React, { useState } from "react";
+import { Phone, User, Loader2, ArrowRight, X, ShieldCheck } from "lucide-react";
+import apiClient from "../../../api/client.js";
+import { useGlobalLanguage } from "../../../context/GlobalLanguageContext.jsx";
+import ErrorNotice from "../../../components/ErrorNotice.jsx";
+import { getLocalizedErrorMessage } from "../../../utils/errorHandling.js";
+import { getAccessToken } from "../../services/authApi.js";
+
+export default function CompleteProfileModal({
+  currentUser,
+  missingFields = ["رقم الهاتف"],
+  isOpen,
+  onClose,
+  onSuccess,
+}) {
+  const { t, language } = useGlobalLanguage();
+  const [name, setName] = useState(currentUser?.name || "");
+  const [phone, setPhone] = useState(currentUser?.phone || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!isOpen) return null;
+
+  const isNameMissing = !currentUser?.name?.trim();
+  const isPhoneMissing = !currentUser?.phone?.trim();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (isNameMissing && !name.trim()) {
+      setError(t("pleaseEnterName"));
+      return;
+    }
+
+    const cleanPhone = phone.trim();
+    if (!cleanPhone) {
+      setError(t("panel.errors.phoneRequired"));
+      return;
+    }
+
+    if (!/^01[0-2,5][0-9]{8}$/.test(cleanPhone)) {
+      setError(t("panel.errors.invalidPhone"));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const token = getAccessToken();
+
+      const payload = {
+        phone: cleanPhone,
+      };
+      if (name.trim()) payload.name = name.trim();
+
+      const { data } = await apiClient.patch("/auth/me", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const updatedUser = {
+        ...(currentUser || {}),
+        phone: cleanPhone,
+        ...(name.trim() ? { name: name.trim() } : {}),
+      };
+
+      onSuccess(updatedUser);
+    } catch (err) {
+      setError(getLocalizedErrorMessage(err, language));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[150] bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative">
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="absolute top-5 start-5 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Icon & Title */}
+        <div className="flex items-center gap-3.5 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 shadow-inner">
+            <ShieldCheck className="w-6 h-6 text-indigo-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-white">
+              استكمال بيانات الدفع
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {t("oneQuickStep")} لمتابعة عملية الدفع بأمان
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-300 mb-6 leading-relaxed bg-white/5 p-3.5 rounded-2xl border border-white/5">
+          تشترط بوابة الدفع تسجيل رقم الهاتف لإصدار الفاتورة وتأكيد عمليتك
+          بنجاح. سيتم حفظ هذا الرقم في ملفك الشخصي.
+        </p>
+
+        <ErrorNotice error={error} language={language} className="mb-5" />
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Name Field (if missing) */}
+          {isNameMissing && (
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                {t("fullNameLabel")}
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 end-0 pe-3.5 flex items-center pointer-events-none text-slate-500">
+                  <User className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="أدخل اسمك"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pe-10 ps-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Phone Field */}
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
+              رقم الهاتف <span className="text-rose-400">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 end-0 pe-3.5 flex items-center pointer-events-none text-slate-500">
+                <Phone className="w-4 h-4" />
+              </div>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="01012345678"
+                autoFocus
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pe-10 ps-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors text-end"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2 flex gap-3">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 group disabled:opacity-50"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <span>حفظ ومتابعة الدفع</span>
+                  <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl text-sm transition-colors"
+            >
+              {t("cancelLabel")}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
