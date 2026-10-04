@@ -20,6 +20,7 @@ try {
   await connectDatabase();
 
   server.listen(env.PORT, () => {
+    console.log(`🔥 Admin Server is running flawlessly on port ${env.PORT}`);
     console.log(
       `Admin Health:    http://localhost:${env.PORT}/api/admin/health`,
     );
