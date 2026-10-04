@@ -13,7 +13,7 @@ async function connectDatabase() {
   }
   mongoose.set("strictQuery", true);
   await mongoose.connect(env.MONGODB_URI);
-  console.log(🚀 Successfully connected to MongoDB Database);
+  console.log(`🚀 Successfully connected to MongoDB Database`);
 }
 
 
