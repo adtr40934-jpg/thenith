@@ -27,16 +27,7 @@ export async function createCard(name) {
 }
 
 export async function saveCard(card) {
-  if (import.meta.env.DEV) {
-    console.log("[save-card] payload", {
-      cardId: card.id,
-      name: card.name,
-      personal: card.personal,
-      contacts: card.contacts,
-      links: card.links,
-      actionType: card.actionType,
-    });
-  }
+
   const data = await api.cards.update(card.id, card);
   return data.card;
 }

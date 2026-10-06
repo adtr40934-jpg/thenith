@@ -122,40 +122,21 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
     const handleSupportUnread = (e) => setSupportUnreadEventCount(e.detail);
     const handleSupportNewMessage = async (e) => {
       unreadToastShownRef.current = true; // Prevent welcome toast
-      const msgTitle = language === "ar" ? "رسالة جديدة من الدعم الفني" : "New message from Support";
-      toast.custom((t) => (
-        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white dark:bg-slate-900 shadow-xl border border-indigo-100 dark:border-indigo-900 rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 relative overflow-hidden`} style={{ marginTop: '65px' }}>
-          <div className="absolute top-0 start-0 w-1.5 h-full bg-indigo-500"></div>
-          <div className="flex-1 w-0 p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 pt-0.5">
-                <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/20 flex items-center justify-center">
-                  <Headset className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-              </div>
-              <div className="ms-3 flex-1">
-                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                  {msgTitle}
-                </p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 line-clamp-2">
-                  {e.detail.content}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex border-s border-slate-100 dark:border-slate-800">
-            <button
-              onClick={() => {
-                toast.dismiss(t.id);
-                setActiveTab("support");
-              }}
-              className="w-full border border-transparent rounded-none rounded-e-2xl p-4 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              {language === "ar" ? "عرض" : "View"}
-            </button>
-          </div>
-        </div>
-      ), { duration: 5000, position: 'top-right' });
+      const msgTitle = language === "ar" ? "رد جديد من الدعم الفني" : "New reply from Support";
+      toast(msgTitle, {
+        icon: '💬',
+        duration: 4000,
+        position: 'top-right',
+        style: {
+          marginTop: '65px',
+          marginRight: language === "ar" ? '0px' : '30px',
+          marginLeft: language === "ar" ? '30px' : '0px',
+          borderRadius: '12px',
+          background: '#4f46e5',
+          color: '#fff',
+          fontSize: '14px',
+        },
+      });
       try {
         const notif = await api.notifications.create({
           type: "support_message",
@@ -371,7 +352,7 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
         onNotificationClick={(item) => {
           const id = item._id || item.id;
           if (id) {
-            api.notifications.deleteOne(id).catch(err => );
+            api.notifications.deleteOne(id).catch(err => {});
             setSupportNotifications(prev => prev.filter(x => (x._id || x.id) !== id));
           }
           if (item.type === "support_message") {
@@ -388,7 +369,7 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
         onLogout={onLogout}
       />
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-1.5 pt-3 sm:gap-4 sm:px-4 md:px-8 md:pt-6 lg:grid-cols-12 lg:gap-6">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-0 pt-0 sm:gap-4 sm:px-4 sm:pt-3 md:px-8 md:pt-6 lg:grid-cols-12 lg:gap-6">
         <DashboardNav
           t={t}
           language={language}
@@ -401,7 +382,7 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
           onLogout={onLogout}
         />
 
-        <main className="relative min-w-0 rounded-[20px] bg-slate-50 px-0 py-1 shadow-[0_18px_45px_rgba(15,23,42,0.08)] dark:bg-slate-950/20 sm:rounded-[28px] sm:px-1 sm:py-2 md:rounded-none md:bg-transparent md:p-0 md:shadow-none lg:col-span-9">
+        <main className="relative min-w-0 bg-transparent px-0 py-0 shadow-none sm:rounded-[28px] sm:bg-slate-50 sm:px-1 sm:py-2 sm:shadow-[0_18px_45px_rgba(15,23,42,0.08)] dark:sm:bg-slate-950/20 md:rounded-none md:bg-transparent md:p-0 md:shadow-none lg:col-span-9">
           <AnimatePresence mode="wait">
             {activeTab === "home" && isFeatureEnabled("analytics") && (
               <motion.div

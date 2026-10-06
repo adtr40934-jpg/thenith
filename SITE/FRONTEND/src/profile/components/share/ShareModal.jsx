@@ -63,7 +63,9 @@ export default function ShareModal({ isOpen, onClose }) {
         url: currentUrl,
       });
     } catch (err) {
-      if (err.name !== "AbortError") 
+      if (err.name !== "AbortError") {
+        console.error(err);
+      }
     }
   };
 

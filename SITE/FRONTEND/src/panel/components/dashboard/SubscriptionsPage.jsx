@@ -19,7 +19,7 @@ import { getAccessToken } from "../../services/authApi.js";
 import CompleteProfileModal from "./CompleteProfileModal.jsx";
 import { useNavigate } from "react-router-dom";
 import UnifiedPaymentBox from "./UnifiedPaymentBox.jsx";
-import toast from "react-hot-toast";
+import { toast } from "../../../util/toast";
 export default function SubscriptionsPage({
   t,
   subscription: initialSubscription,
@@ -80,10 +80,7 @@ export default function SubscriptionsPage({
           try {
             const pendingRes = await apiClient.get("/payment/pending", { headers });
             if (mounted && pendingRes.data?.success) {
-              const allPending = [
-                ...(pendingRes.data.subscriptions || []),
-                ...(pendingRes.data.orders || []),
-              ];
+              const allPending = pendingRes.data.subscriptions || [];
               setPendingPayments(allPending);
             }
           } catch (e) {
@@ -144,6 +141,12 @@ export default function SubscriptionsPage({
   };
 
   const handleSubscribe = () => {
+    if (!currentUser?.phone) {
+      toast.error(isArabic ? "يجب إضافة رقم هاتف لحسابك من صفحة الملف الشخصي أولاً لتفعيل الاشتراك." : "Please add a phone number to your profile first.");
+      setShowProfileModal(true);
+      return;
+    }
+    
     if (!proPlan) return;
     const planName = typeof proPlan.name === "object"
       ? (proPlan.name[isArabic ? "ar" : "en"] || proPlan.name.ar)
@@ -234,7 +237,7 @@ export default function SubscriptionsPage({
   }
 
   return (
-    <div className="space-y-8 pb-20 p-2 sm:p-0 relative" dir={isArabic ? "rtl" : "ltr"}>
+    <div className="space-y-8 pb-20 p-0 relative" dir={isArabic ? "rtl" : "ltr"}>
       {/* Section Header */}
       <div className="text-center pt-4 pb-2">
         <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">

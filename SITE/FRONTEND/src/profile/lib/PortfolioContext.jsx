@@ -7,12 +7,18 @@ import { getLocalizedErrorMessage } from "../../utils/errorHandling.js";
 const STORAGE_KEY = "thenith_portfolio_data";
 const PortfolioContext = createContext(undefined);
 
-export const PortfolioProvider = ({ children }) => {
-  const [profile, setProfile] = useState(null);
-  const [status, setStatus] = useState("idle");
+export const PortfolioProvider = ({ children, mockProfile }) => {
+  const [profile, setProfile] = useState(mockProfile ? normalizePortfolio(mockProfile) : null);
+  const [status, setStatus] = useState(mockProfile ? "success" : "idle");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (mockProfile) {
+      setProfile(normalizePortfolio(mockProfile));
+      setStatus("success");
+      return;
+    }
+
     let isMounted = true;
     setStatus("loading");
 
@@ -144,11 +150,22 @@ export const PortfolioProvider = ({ children }) => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [mockProfile]);
 
   useEffect(() => {
     applyProfileSeo(profile);
   }, [profile]);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data?.type === "PREVIEW_UPDATE" && event.data?.profile) {
+        setProfile(normalizePortfolio(event.data.profile));
+        setStatus("success");
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   const value = useMemo(
     () => ({

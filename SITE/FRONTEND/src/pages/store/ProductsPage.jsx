@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { formatMoney, loadStoreProducts } from "./storeApi.js";
 import { useCart } from "../../context/CartContext.jsx";
 import { ShoppingCart } from "lucide-react";
-import Swal from "sweetalert2";
+
 
 export default function ProductsPage() {
   const { t, language } = useGlobalLanguage();
@@ -46,21 +46,7 @@ export default function ProductsPage() {
       </header>
 
       <main className="max-w-[1200px] mx-auto px-6">
-        <div className="mb-8 flex justify-end">
-          <Link
-            to="/cart"
-            aria-label={`${t("store.cartTitle")}: ${totalItems}`}
-            title={t("store.cartTitle")}
-            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 transition-colors hover:border-indigo-300 hover:text-indigo-600"
-          >
-            <ShoppingCart className="h-5 w-5" />
-            {totalItems > 0 && (
-              <span className="absolute -end-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-bold text-white">
-                {totalItems > 99 ? "99+" : totalItems}
-              </span>
-            )}
-          </Link>
-        </div>
+
         {loading ? (
           <div className="flex justify-center items-center py-32">
             <div className="w-10 h-10 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
@@ -134,17 +120,19 @@ export default function ProductsPage() {
                           e.preventDefault();
                           e.stopPropagation();
                           addToCart(product);
-                          Swal.fire({
-                            toast: true,
-                            position: "bottom-end",
-                            icon: "success",
-                            title: t("store.addedToCart") || "Added to cart!",
-                            showConfirmButton: false,
-                            timer: 2000,
-                            timerProgressBar: true,
-                            background: "#111827",
-                            color: "#fff",
-                            iconColor: "#10B981",
+                          import("sweetalert2").then((Swal) => {
+                            Swal.default.fire({
+                              toast: true,
+                              position: "bottom-end",
+                              icon: "success",
+                              title: t("store.addedToCart") || "Added to cart!",
+                              showConfirmButton: false,
+                              timer: 2000,
+                              timerProgressBar: true,
+                              background: "#111827",
+                              color: "#fff",
+                              iconColor: "#10B981",
+                            });
                           });
                         }}
                         className="w-10 h-10 rounded-full bg-[#111827] text-white flex items-center justify-center hover:bg-black hover:scale-105 active:scale-95 transition-all shadow-sm relative z-20 cursor-pointer"

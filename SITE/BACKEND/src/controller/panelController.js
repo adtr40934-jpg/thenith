@@ -124,6 +124,7 @@ const createCard = asyncHandler(async (request, response) => {
             userId: request.user._id,
             name: request.body?.name?.trim() || `Card ${count + 1}`,
             isActive: count === 0,
+            theme: "default",
             personal: {},
             links: [],
             contacts: [],
@@ -167,7 +168,7 @@ const updateCard = asyncHandler(async (request, response) => {
       );
     }
   }
-  const allowed = ["name", "personal", "contacts", "links", "actionType", "calendarSettings"];
+  const allowed = ["name", "personal", "contacts", "links", "actionType", "calendarSettings", "theme"];
   if (
     Array.isArray(request.body?.links) &&
     !canAccess(request.subscription.entitlements, "reorderLinks")
@@ -234,6 +235,10 @@ const updateCard = asyncHandler(async (request, response) => {
     delete updates.calendarSettings;
   }
 
+  if (!canAccess(request.subscription.entitlements, "themeSelection") && updates.theme !== undefined) {
+    delete updates.theme;
+  }
+
   if (!canAccess(request.subscription.entitlements, "coverImage") && updates.personal) {
     updates.personal = { ...updates.personal };
     delete updates.personal.coverImage;
@@ -259,12 +264,6 @@ const updateCard = asyncHandler(async (request, response) => {
     { new: true, runValidators: true },
   ).populate("userId", "username publicId");
   if (!updatedCard) throw new HttpError(404, "Card not found");
-
-  notifyUser(request.user._id.toString(), {
-    type: "card_updated",
-    payload: { id: updatedCard._id },
-    cardId: updatedCard._id.toString(),
-  });
 
   response.json({
     card: buildDashboardCardDTO(
@@ -480,10 +479,7 @@ export const registerPhysicalCard = asyncHandler(async (request, response) => {
     ],
   }).select("_id username publicId email");
 
-  console.log(`[NFC Register] DB result:`, profileUser
-    ? `user ${profileUser._id} (${profileUser.email})`
-    : "not found"
-  );
+
 
   if (!profileUser) throw new HttpError(404, "PROFILE_NOT_FOUND");
 

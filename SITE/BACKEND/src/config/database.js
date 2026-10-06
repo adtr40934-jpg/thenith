@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import _env9406 from "./env.js";
-const { env  } = _env9406;
+const { env } = _env9406;
 import { setServers } from "node:dns/promises";
 
 async function connectDatabase() {
@@ -13,7 +13,7 @@ async function connectDatabase() {
   }
   mongoose.set("strictQuery", true);
   await mongoose.connect(env.MONGODB_URI);
-  console.log(`🚀 Successfully connected to MongoDB Database`);
+  console.log(`Successfully connected to MongoDB Database`);
 }
 
 

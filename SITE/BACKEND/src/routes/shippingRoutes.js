@@ -22,6 +22,7 @@ router.get("/", async (req, res) => {
     }
 
     const safeRates = rates.map((r) => ({
+      _id: r._id.toString(),
       id: r._id.toString(),
       governorate: r.governorate,
       governorateAr: r.governorateAr,

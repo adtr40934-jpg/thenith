@@ -6,7 +6,7 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-@variant dark (&:where(.dark, .dark *));
+@variant dark (&:where(.dark, .dark *, .force-dark, .force-dark *):not(:where(.force-light, .force-light *)));
 
 :root {
   --app-font: "Poppins", "Rubik";
@@ -157,3 +157,133 @@ body.loading-screen-active .global-support-widget {
   display: none !important;
 }
 
+
+/* --- Profile Theme System --------------------------------------------------- */
+/* Scoped to #profile-themed-root[data-profile-theme] only.                    */
+/* The "default" theme has no data-profile-theme attr - no overrides at all.   */
+
+#profile-themed-root[data-profile-theme] {
+  min-height: 100vh;
+  background: var(--pt-page-bg, transparent) !important;
+  transition: background 0.5s ease;
+}
+
+#profile-themed-root[data-profile-theme] .profile-card {
+  background: var(--pt-card-bg) !important;
+  border-color: var(--pt-card-border) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-btn-primary {
+  background: var(--pt-btn-primary-bg) !important;
+  border-color: var(--pt-btn-primary-border, transparent) !important;
+  color: var(--pt-btn-primary-text) !important;
+}
+#profile-themed-root[data-profile-theme] .profile-btn-primary:hover {
+  background: var(--pt-btn-primary-hover-bg) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-btn-secondary {
+  background: var(--pt-btn-secondary-bg) !important;
+  border-color: var(--pt-btn-secondary-border) !important;
+  color: var(--pt-btn-secondary-text) !important;
+}
+#profile-themed-root[data-profile-theme] .profile-btn-secondary:hover {
+  background: var(--pt-btn-secondary-hover-bg) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-btn-save {
+  background: var(--pt-btn-save-bg) !important;
+  border-color: var(--pt-btn-save-border, transparent) !important;
+  color: var(--pt-btn-save-text) !important;
+}
+#profile-themed-root[data-profile-theme] .profile-btn-save:hover {
+  background: var(--pt-btn-save-hover-bg) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-btn-submit {
+  background: var(--pt-btn-primary-bg) !important;
+  color: var(--pt-btn-primary-text) !important;
+}
+
+/* Force text colors to match the theme regardless of Dark/Light mode */
+#profile-themed-root[data-profile-theme] .text-slate-900,
+#profile-themed-root[data-profile-theme] .text-slate-800,
+#profile-themed-root[data-profile-theme] .text-slate-700,
+#profile-themed-root[data-profile-theme] .text-gray-900,
+#profile-themed-root[data-profile-theme] .text-gray-800,
+#profile-themed-root[data-profile-theme] .text-gray-700,
+#profile-themed-root[data-profile-theme] .text-zinc-900,
+#profile-themed-root[data-profile-theme] .text-zinc-800,
+#profile-themed-root[data-profile-theme] .text-neutral-900,
+#profile-themed-root[data-profile-theme] .dark\:text-white,
+#profile-themed-root[data-profile-theme] .dark\:text-slate-100,
+#profile-themed-root[data-profile-theme] .dark\:text-slate-200,
+#profile-themed-root[data-profile-theme] .dark\:text-gray-100,
+#profile-themed-root[data-profile-theme] .dark\:text-gray-200,
+#profile-themed-root[data-profile-theme] .dark\:text-zinc-100 {
+  color: var(--pt-text-primary) !important;
+}
+
+#profile-themed-root[data-profile-theme] .text-slate-600,
+#profile-themed-root[data-profile-theme] .text-slate-500,
+#profile-themed-root[data-profile-theme] .text-slate-400,
+#profile-themed-root[data-profile-theme] .text-gray-600,
+#profile-themed-root[data-profile-theme] .text-gray-500,
+#profile-themed-root[data-profile-theme] .text-gray-400,
+#profile-themed-root[data-profile-theme] .text-zinc-500,
+#profile-themed-root[data-profile-theme] .text-zinc-600,
+#profile-themed-root[data-profile-theme] .text-neutral-500,
+#profile-themed-root[data-profile-theme] .dark\:text-slate-300,
+#profile-themed-root[data-profile-theme] .dark\:text-slate-400,
+#profile-themed-root[data-profile-theme] .dark\:text-slate-500,
+#profile-themed-root[data-profile-theme] .dark\:text-gray-300,
+#profile-themed-root[data-profile-theme] .dark\:text-gray-400,
+#profile-themed-root[data-profile-theme] .dark\:text-gray-500 {
+  color: var(--pt-text-secondary) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-tab-indicator {
+  background: var(--pt-tab-active-bg) !important;
+  backdrop-filter: blur(8px) !important;
+}
+#profile-themed-root[data-profile-theme] .profile-tab-active {
+  color: var(--pt-tab-active-text) !important;
+}
+#profile-themed-root[data-profile-theme] .profile-tab-inactive {
+  color: var(--pt-tab-inactive-text) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-mobile-nav {
+  background: var(--pt-nav-bg) !important;
+  border-top-color: var(--pt-nav-border) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-divider {
+  border-color: var(--pt-divider) !important;
+}
+
+#profile-themed-root[data-profile-theme] .profile-nav-indicator {
+  background: var(--pt-tab-active-bg) !important;
+}
+#profile-themed-root[data-profile-theme] {
+  color: var(--pt-text-primary) !important;
+}
+
+
+/* Force border colors */
+#profile-themed-root[data-profile-theme] .border-slate-100,
+#profile-themed-root[data-profile-theme] .border-slate-200,
+#profile-themed-root[data-profile-theme] .border-gray-100,
+#profile-themed-root[data-profile-theme] .border-gray-200,
+#profile-themed-root[data-profile-theme] .dark\:border-slate-700,
+#profile-themed-root[data-profile-theme] .dark\:border-slate-800 {
+  border-color: var(--pt-card-border) !important;
+}
+
+/* Force cover gradient to match theme */
+#profile-themed-root[data-profile-theme] .profile-gradient {
+  background: linear-gradient(180deg, var(--pt-btn-primary-bg) 0%, var(--pt-btn-secondary-bg) 60%, transparent 100%) !important;
+  opacity: 0.25 !important;
+}

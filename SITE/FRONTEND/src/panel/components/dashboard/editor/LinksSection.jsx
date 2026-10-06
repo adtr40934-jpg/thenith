@@ -15,6 +15,7 @@ import {
   Save,
   Trash2,
   Youtube,
+  Lock,
 } from "lucide-react";
 import Field from "../../ui/Field.jsx";
 import { makeId } from "../../../data/dashboardSeed.js";
@@ -257,6 +258,7 @@ export default function LinksSection({
   onUpdateCard,
   showValidation,
   onUpgrade,
+  isPro,
 }) {
   const { confirm } = useConfirm();
   const [linkSearch, setLinkSearch] = useState("");
@@ -267,14 +269,17 @@ export default function LinksSection({
   const showUpgradeMessage = () => {
     import("sweetalert2").then((Swal) => {
       Swal.default.fire({
-        title: t("proFeatureOnly"),
+        title: isPro ? t("limitReachedTitle") : t("proFeatureOnly"),
+        text: isPro ? t("linkLimitReached") : t("proFeatureText"),
         icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: language === "ar" ? "تصفح الباقات" : "View Plans",
+        showCancelButton: !isPro,
+        confirmButtonText: isPro 
+          ? (language === "ar" ? "حسناً" : "OK") 
+          : (language === "ar" ? "تصفح الباقات" : "View Plans"),
         cancelButtonText: language === "ar" ? "إلغاء" : "Cancel",
         confirmButtonColor: "#4f46e5",
       }).then((result) => {
-        if (result.isConfirmed && onUpgrade) {
+        if (!isPro && result.isConfirmed && onUpgrade) {
           onUpgrade();
         }
       });
@@ -345,10 +350,12 @@ export default function LinksSection({
             }
             onToggleCustomLink(!customLinkOpen);
           }}
-          disabled={!canAddLink}
-          className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
+          className={`rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 flex items-center justify-center gap-2 ${
+            !canAddLink ? "opacity-75" : ""
+          }`}
         >
           {t("customLink")}
+          {!canAddLink && <Lock className="h-4 w-4 text-amber-500 shrink-0" />}
         </button>
         <button
           onClick={() => {
@@ -358,10 +365,11 @@ export default function LinksSection({
             }
             onToggleLinkPicker(!showLinkPicker);
           }}
-          disabled={!canAddLink}
-          className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 ${
+            !canAddLink ? "opacity-75" : ""
+          }`}
         >
-          <Plus className="h-4 w-4" />
+          {!canAddLink ? <Lock className="h-4 w-4 text-amber-400" /> : <Plus className="h-4 w-4" />}
           {t("add")}
         </button>
       </div>

@@ -27,8 +27,6 @@ async function initSocket(server) {
 
       const token =
         socket.handshake.auth?.token || cookies.access_token || cookies.token;
-      const adminToken =
-        socket.handshake.auth?.adminToken || cookies.admin_token;
 
       if (token) {
         try {
@@ -40,14 +38,7 @@ async function initSocket(server) {
         }
       }
 
-      if (adminToken) {
-        try {
-          const admin = jwt.verify(adminToken, env.ADMIN_JWT_SECRET);
-          if (admin.role === "superadmin") socket.admin = admin;
-        } catch (e) {
-          // ignore invalid admin token
-        }
-      }
+
 
       socket.guestId = socket.handshake.auth?.guestId || "";
       next();
@@ -83,7 +74,7 @@ async function initSocket(server) {
         await CustomerService.findById(customerServiceId).select("user guestId");
       if (!customerService) return;
 
-      const isAdmin = !!socket.admin;
+
       const isLoggedInOwner =
         socket.user &&
         customerService.user &&
@@ -94,10 +85,10 @@ async function initSocket(server) {
       // (handles legacy sessions where guestId changed between page loads)
       const hasAnyGuestIdentity = !!(socket.guestId || providedGuestId);
 
-      if (isAdmin || isLoggedInOwner || isGuestOwner || hasAnyGuestIdentity) {
+      if (isLoggedInOwner || isGuestOwner || hasAnyGuestIdentity) {
         socket.join(`customerService_${customerServiceId}`);
         console.log(
-          `Socket ${socket.id} joined customerService_${customerServiceId} (admin:${isAdmin} user:${isLoggedInOwner} guest:${isGuestOwner})`,
+          `Socket ${socket.id} joined customerService_${customerServiceId} (user:${isLoggedInOwner} guest:${isGuestOwner})`,
         );
       } else {
         console.log(
@@ -114,14 +105,12 @@ async function initSocket(server) {
         (socket.user &&
           String(customerService.user) === String(socket.user._id)) ||
         (socket.guestId && customerService.guestId === socket.guestId);
-      if (socket.admin || isOwner) {
+      if (isOwner) {
         socket.join(`customerService_${customerServiceId}`);
       }
     });
 
-    socket.on("joinAdmin", () => {
-      if (socket.admin) socket.join("admin_room");
-    });
+
 
     socket.on("joinUserRoom", () => {
       if (socket.user) {
@@ -143,9 +132,11 @@ async function initSocket(server) {
           room?.emit("newMessage", message);
         }
 
-        const adminRoom = getRoomTarget(io, "admin_room");
-        adminRoom?.emit("newMessage", message);
+
       }
+    });
+    chatStream.on("error", (err) => {
+      console.error("chatStream error:", err);
     });
   } catch (err) {
   }
@@ -153,23 +144,14 @@ async function initSocket(server) {
   try {
     const convStream = CustomerService.watch([], { fullDocument: "updateLookup" });
     convStream.on("change", async (change) => {
-      console.log(
-        "CustomerService Change Stream Fired:",
-        change.operationType,
-        change.updateDescription?.updatedFields,
-      );
+
       if (
         change.operationType === "insert" ||
         change.operationType === "update"
       ) {
         const customerService = change.fullDocument;
         if (customerService) {
-          // Send updated customerService to admin room (populate user to match expected format on admin)
-          const populatedConv = await CustomerService.findById(
-            customerService._id,
-          ).populate("user", "name email");
-          const adminRoom = getRoomTarget(io, "admin_room");
-          adminRoom?.emit("customerServiceUpdated", populatedConv || customerService);
+
 
           // If status changed, emit customerServiceStatusChanged to the specific room
           if (
@@ -187,6 +169,9 @@ async function initSocket(server) {
           }
         }
       }
+    });
+    convStream.on("error", (err) => {
+      console.error("convStream error:", err);
     });
   } catch (err) {
   }
@@ -207,6 +192,9 @@ async function initSocket(server) {
           });
         }
       }
+    });
+    notifStream.on("error", (err) => {
+      console.error("notifStream error:", err);
     });
   } catch (err) {
   }

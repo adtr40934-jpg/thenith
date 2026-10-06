@@ -18,7 +18,7 @@ import {
 import { saveProfile } from "../../services/authApi.js";
 import ErrorNotice from "../../../components/ErrorNotice.jsx";
 import { getLocalizedErrorMessage } from "../../../utils/errorHandling.js";
-import toast from "react-hot-toast";
+import { toast } from "../../../util/toast";
 import api from "../../../api/index.js";
 
 
@@ -110,6 +110,10 @@ export default function PanelCheckout({ t, onBack }) {
 
   const handleCheckout = async (e) => {
     e.preventDefault();
+    if (!user?.phone) {
+      toast.error(isArabic ? "يجب إضافة رقم هاتف لحسابك من صفحة الملف الشخصي أولاً." : "Please add a phone number to your profile first.");
+      return;
+    }
     setIsSubmitting(true);
 
     const formData = new FormData(e.target);

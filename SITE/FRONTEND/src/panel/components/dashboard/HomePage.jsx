@@ -324,7 +324,7 @@ export default function HomePage({
   ];
 
   return (
-    <section className="space-y-4 p-1.5 sm:space-y-6 sm:p-3 md:p-0">
+    <section className="space-y-4 p-0 sm:space-y-6 sm:p-3 md:p-0">
       <PendingPaymentAlert />
 
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

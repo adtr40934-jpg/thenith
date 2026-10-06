@@ -25,7 +25,7 @@ import { canAccess } from "../../utils/entitlements.js";
 import api from "../../../api/index.js";
 import { formatMoney } from "../../../pages/store/storeApi.js";
 import UnifiedPaymentBox from "./UnifiedPaymentBox.jsx";
-import toast from "react-hot-toast";
+import { toast } from "../../../util/toast";
 import ErrorNotice from "../../../components/ErrorNotice.jsx";
 import { getLocalizedErrorMessage } from "../../../utils/errorHandling.js";
 import {
@@ -111,19 +111,23 @@ export default function ProfilePage({
   const { confirm } = useConfirm();
   const isArabic = language === "ar";
   const canUseCustomLink = canAccess(entitlements, "customLink");
+  const isPro = entitlements?.plan === "pro";
   const showUpgradeMessage = () => {
     import("sweetalert2").then((Swal) => {
       Swal.default
         .fire({
-          title: t("proFeatureOnly"),
+          title: isPro ? t("limitReachedTitle") : t("proFeatureOnly"),
+          text: isPro ? t("limitReachedText") : t("proFeatureText"),
           icon: "warning",
-          showCancelButton: true,
-          confirmButtonText: isArabic ? "تصفح الباقات" : "View Plans",
+          showCancelButton: !isPro,
+          confirmButtonText: isPro 
+            ? (isArabic ? "حسناً" : "OK") 
+            : (isArabic ? "تصفح الباقات" : "View Plans"),
           cancelButtonText: isArabic ? "إلغاء" : "Cancel",
           confirmButtonColor: "#4f46e5",
         })
         .then((result) => {
-          if (result.isConfirmed && onUpgrade) {
+          if (!isPro && result.isConfirmed && onUpgrade) {
             onUpgrade();
           }
         });
@@ -378,7 +382,7 @@ export default function ProfilePage({
   };
 
   return (
-    <section className="space-y-4 p-1.5 sm:p-3 md:p-0">
+    <section className="space-y-4 p-0 sm:p-3 md:p-0">
       <div className="flex flex-col justify-between gap-3 rounded-[20px] bg-white p-3 shadow-sm dark:bg-slate-950/45 sm:flex-row sm:items-center sm:rounded-[24px] sm:p-4 md:bg-transparent md:p-0 md:shadow-none">
         <div>
           <h1 className="text-2xl font-black">{t("profile")}</h1>
@@ -431,7 +435,7 @@ export default function ProfilePage({
           </div>
           {!canUseCustomLink && (
             <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-              {t("proFeatureOnly")}
+              {t("proFeatureText")}
             </p>
           )}
           {usernameStatus === "checking" && (
@@ -1051,10 +1055,12 @@ export default function ProfilePage({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-800 dark:text-white">
-                    {isArabic ? "تفاصيل الاشتراك" : "Subscription Details"}
+                    {selectedSubDetails.orderType === "subscription" 
+                      ? (isArabic ? "تفاصيل الاشتراك" : "Subscription Details")
+                      : (isArabic ? "تفاصيل الطلب" : "Order Details")}
                   </h3>
-                  <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                    pro
+                  <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 uppercase">
+                    {selectedSubDetails.orderType === "subscription" ? "PRO" : (isArabic ? "متجر" : "STORE")}
                   </p>
                 </div>
               </div>
@@ -1070,7 +1076,7 @@ export default function ProfilePage({
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/30">
                   <p className="text-[11px] font-bold text-slate-400">
-                    {isArabic ? "حالة الاشتراك" : "Status"}
+                    {isArabic ? "حالة الدفع" : "Status"}
                   </p>
                   <p className="text-sm font-black text-slate-800 dark:text-white mt-1 capitalize">
                     {selectedSubDetails.status === "active" ||
@@ -1092,20 +1098,22 @@ export default function ProfilePage({
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/30">
-                  <p className="text-[11px] font-bold text-slate-400">
-                    {isArabic ? "فترة الفاتورة" : "Billing Period"}
-                  </p>
-                  <p className="text-sm font-black text-slate-800 dark:text-white mt-1">
-                    {selectedSubDetails.billingPeriod === "yearly"
-                      ? isArabic
-                        ? "سنوي"
-                        : "Yearly"
-                      : isArabic
-                        ? "شهري"
-                        : "Monthly"}
-                  </p>
-                </div>
+                {selectedSubDetails.orderType === "subscription" && (
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-900/30">
+                    <p className="text-[11px] font-bold text-slate-400">
+                      {isArabic ? "فترة الفاتورة" : "Billing Period"}
+                    </p>
+                    <p className="text-sm font-black text-slate-800 dark:text-white mt-1">
+                      {selectedSubDetails.billingPeriod === "yearly"
+                        ? isArabic
+                          ? "سنوي"
+                          : "Yearly"
+                        : isArabic
+                          ? "شهري"
+                          : "Monthly"}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/30 space-y-2.5">

@@ -54,6 +54,7 @@ const envSchema = z.object({
     .positive()
     .default(1000000),
   SOCKET_PATH: z.string().default("/socket.io"),
+  AVATAR_API_URL: z.string().default("https://api.dicebear.com/9.x/avataaars/svg?seed="),
 });
 
 const parsed = envSchema.safeParse(process.env);

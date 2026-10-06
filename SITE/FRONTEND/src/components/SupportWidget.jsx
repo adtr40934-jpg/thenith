@@ -86,8 +86,8 @@ export default function SupportWidget({ embedded = false, isVisible = true }) {
 
   useEffect(() => {
     if (!embedded && isPanelRoute) return undefined;
-    const storageKey = embedded 
-      ? "thenith_support_panel_guest_id" 
+    const storageKey = embedded
+      ? "thenith_support_panel_guest_id"
       : "thenith_support_guest_id";
     let storedId = localStorage.getItem(storageKey);
     if (!storedId) {
@@ -294,7 +294,7 @@ export default function SupportWidget({ embedded = false, isVisible = true }) {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             className={shellClass}
             initial={!embedded ? { opacity: 0, scale: 0.9, y: 15 } : false}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -302,172 +302,171 @@ export default function SupportWidget({ embedded = false, isVisible = true }) {
             transition={{ duration: 0.25, ease: "easeOut" }}
           >
             {/* Animated Mesh Background */}
-          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-25 dark:opacity-15">
-            <div className="absolute top-[-20%] start-[-20%] w-[80%] h-[80%] bg-indigo-300/50 dark:bg-indigo-700/40 rounded-full mix-blend-normal blur-[60px] animate-blob" />
-            <div className="absolute top-[-20%] end-[-20%] w-[80%] h-[80%] bg-rose-300/50 dark:bg-rose-700/30 rounded-full mix-blend-normal blur-[60px] animate-blob animation-delay-2000" />
-            <div className="absolute bottom-[-20%] start-[10%] w-[80%] h-[80%] bg-sky-300/50 dark:bg-sky-700/30 rounded-full mix-blend-normal blur-[60px] animate-blob animation-delay-4000" />
-          </div>
-
-          {/* Header */}
-          <div className="bg-gradient-to-b from-white/80 to-transparent dark:from-slate-800/80 dark:to-transparent text-slate-900 dark:text-white px-6 pt-5 pb-8 flex flex-col relative shrink-0 z-10">
-            <div className="flex justify-between items-start mb-0 relative z-10">
-              <div className="flex flex-col">
-                <span className="text-slate-900 dark:text-white font-black text-lg tracking-tight mb-2">Thenith</span>
-                <h3 className="font-bold text-2xl flex items-center gap-2 text-slate-900 dark:text-white mb-1">
-                  {isAuthenticated && user
-                    ? `${isAr ? "أهلاً" : "Hello"} ${user.name?.split(" ")[0] || user.fullName?.split(" ")[0] || ""} 👋`
-                    : isAr
-                      ? "أهلاً 👋"
-                      : "Hello there 👋"}
-                </h3>
-                <h4 className="font-bold text-xl text-slate-900 dark:text-white">
-                  {isAr ? " نقدر نساعدك ازاي؟" : "How can we help?"}
-                </h4>
-              </div>
-              {!embedded && (
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  aria-label={t("support.title")}
-                  className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-100/70 dark:bg-slate-700/60 hover:bg-slate-200/80 dark:hover:bg-slate-600/70 rounded-full p-2 backdrop-blur-md shadow-sm"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              )}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-25 dark:opacity-15">
+              <div className="absolute top-[-20%] start-[-20%] w-[80%] h-[80%] bg-indigo-300/50 dark:bg-indigo-700/40 rounded-full mix-blend-normal blur-[60px] animate-blob" />
+              <div className="absolute top-[-20%] end-[-20%] w-[80%] h-[80%] bg-rose-300/50 dark:bg-rose-700/30 rounded-full mix-blend-normal blur-[60px] animate-blob animation-delay-2000" />
+              <div className="absolute bottom-[-20%] start-[10%] w-[80%] h-[80%] bg-sky-300/50 dark:bg-sky-700/30 rounded-full mix-blend-normal blur-[60px] animate-blob animation-delay-4000" />
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium relative z-10 mt-3">
-              {isAr ? "فريق Thenith هنا دايماً" : "Thenith support is always here"}
-            </p>
-          </div>
 
-          {/* Chat Area */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide bg-transparent flex flex-col relative p-4 z-10">
-            {!ticket ? (
-              <div className="flex-1 flex flex-col justify-center max-w-[320px] mx-auto w-full">
-                <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-[24px] shadow-xl dark:shadow-[0_15px_35px_rgba(0,0,0,0.25)] border border-white/60 dark:border-slate-600/50 ring-1 ring-slate-900/5 dark:ring-white/5">
-                  {loading || isInitializing ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-6 text-slate-600 dark:text-slate-300">
-                      <div className="h-10 w-10 border-2 border-slate-200 dark:border-slate-600 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
-                      <span className="text-sm font-medium">
-                        {t("support.loading")}
-                      </span>
-                    </div>
-                  ) : (
-                    <form
-                      onSubmit={(e) => startChat(e, user?.name || user?.fullName)}
-                      className="space-y-4"
-                    >
-                      <h4 className="font-bold text-slate-900 dark:text-white mb-2 text-lg">
-                        {t("support.welcome")}
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                        {t("support.welcomeDesc")}.
-                      </p>
-                      {!user && (
-                        <input
-                          type="text"
-                          required
-                          placeholder={t("support.name")}
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-700/60 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                        />
-                      )}
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-slate-900 dark:bg-indigo-600 text-white font-bold rounded-xl px-4 py-3 text-sm hover:bg-black dark:hover:bg-indigo-500 transition-colors shadow-lg disabled:opacity-50"
-                      >
-                        {t("support.startChat")}
-                      </button>
-                    </form>
-                  )}
+            {/* Header */}
+            <div className="bg-gradient-to-b from-white/80 to-transparent dark:from-slate-800/80 dark:to-transparent text-slate-900 dark:text-white px-6 pt-5 pb-8 flex flex-col relative shrink-0 z-10">
+              <div className="flex justify-between items-start mb-0 relative z-10">
+                <div className="flex flex-col">
+                  <span className="text-slate-900 dark:text-white font-black text-lg tracking-tight mb-2">Thenith</span>
+                  <h3 className="font-bold text-2xl flex items-center gap-2 text-slate-900 dark:text-white mb-1">
+                    {isAuthenticated && user
+                      ? `${isAr ? "أهلاً" : "Hello"} ${user.name?.split(" ")[0] || user.fullName?.split(" ")[0] || ""} 👋`
+                      : isAr
+                        ? "أهلاً 👋"
+                        : "Hello there 👋"}
+                  </h3>
+                  <h4 className="font-bold text-xl text-slate-900 dark:text-white">
+                    {isAr ? " نقدر نساعدك ازاي؟" : "How can we help?"}
+                  </h4>
                 </div>
+                {!embedded && (
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    aria-label={t("support.title")}
+                    className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-slate-100/70 dark:bg-slate-700/60 hover:bg-slate-200/80 dark:hover:bg-slate-600/70 rounded-full p-2 backdrop-blur-md shadow-sm"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="space-y-4 pb-4">
-                <div className="text-center text-[11px] text-slate-400 dark:text-slate-500 font-bold my-4">
-                  {t("support.chatActive")}
-                </div>
-                {messages.map((msg, i) => {
-                  const isGuest =
-                    msg.senderModel === "Guest" || msg.senderModel === "User";
-                  const isSystem = msg.senderModel === "System";
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium relative z-10 mt-3">
+                {isAr ? "فريق Thenith هنا دايماً" : "Thenith support is always here"}
+              </p>
+            </div>
 
-                  if (isSystem) {
+            {/* Chat Area */}
+            <div className="flex-1 overflow-y-auto scrollbar-hide bg-transparent flex flex-col relative p-4 z-10">
+              {!ticket ? (
+                <div className="flex-1 flex flex-col justify-center max-w-[320px] mx-auto w-full">
+                  <div className="bg-white/80 dark:bg-slate-800/80 p-6 rounded-[24px] shadow-xl dark:shadow-[0_15px_35px_rgba(0,0,0,0.25)] border border-white/60 dark:border-slate-600/50 ring-1 ring-slate-900/5 dark:ring-white/5">
+                    {loading || isInitializing ? (
+                      <div className="flex flex-col items-center justify-center gap-3 py-6 text-slate-600 dark:text-slate-300">
+                        <div className="h-10 w-10 border-2 border-slate-200 dark:border-slate-600 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin" />
+                        <span className="text-sm font-medium">
+                          {t("support.loading")}
+                        </span>
+                      </div>
+                    ) : (
+                      <form
+                        onSubmit={(e) => startChat(e, user?.name || user?.fullName)}
+                        className="space-y-4"
+                      >
+                        <h4 className="font-bold text-slate-900 dark:text-white mb-2 text-lg">
+                          {t("support.welcome")}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                          {t("support.welcomeDesc")}.
+                        </p>
+                        {!user && (
+                          <input
+                            type="text"
+                            required
+                            placeholder={t("support.name")}
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-700/60 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          />
+                        )}
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full bg-slate-900 dark:bg-indigo-600 text-white font-bold rounded-xl px-4 py-3 text-sm hover:bg-black dark:hover:bg-indigo-500 transition-colors shadow-lg disabled:opacity-50"
+                        >
+                          {t("support.startChat")}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 pb-4">
+                  <div className="text-center text-[11px] text-slate-400 dark:text-slate-500 font-bold my-4">
+                    {t("support.chatActive")}
+                  </div>
+                  {messages.map((msg, i) => {
+                    const isGuest =
+                      msg.senderModel === "Guest" || msg.senderModel === "User";
+                    const isSystem = msg.senderModel === "System";
+
+                    if (isSystem) {
+                      return (
+                        <div key={msg._id || i} className="flex justify-center my-3">
+                          <div className="bg-slate-200/60 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 px-3 py-1 rounded-full text-[10px] font-bold border border-slate-200/60 dark:border-slate-600/40">
+                            {msg.content}
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
-                      <div key={msg._id || i} className="flex justify-center my-3">
-                        <div className="bg-slate-200/60 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 px-3 py-1 rounded-full text-[10px] font-bold border border-slate-200/60 dark:border-slate-600/40">
-                          {msg.content}
+                      <div
+                        key={msg._id || i}
+                        className={`flex ${isGuest ? "justify-start" : "justify-end"} mb-2 w-full`}
+                      >
+                        <div
+                          className={`max-w-[85%] p-3.5 text-sm flex flex-col ${isGuest
+                              ? "bg-black text-white rounded-[20px] rounded-se-[4px] shadow-md"
+                              : "bg-white/95 dark:bg-slate-800/95 text-slate-800 dark:text-slate-100 rounded-[20px] rounded-ss-[4px] border border-slate-200/70 dark:border-slate-600/40 shadow-sm"
+                            }`}
+                        >
+                          <p
+                            className="whitespace-pre-wrap break-words leading-relaxed text-start"
+                            dir="auto"
+                          >
+                            {msg.content}
+                          </p>
+                          <div
+                            className={`text-[10px] mt-1.5 font-medium ${isGuest
+                              ? "text-slate-400 text-start"
+                              : "text-slate-500 dark:text-slate-400 text-end"
+                              }`}
+                          >
+                            {new Date(msg.createdAt || Date.now()).toLocaleTimeString(
+                              "ar-EG-u-nu-latn",
+                              { hour: "2-digit", minute: "2-digit" }
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
-                  }
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </div>
 
-                  return (
-                    <div
-                      key={msg._id || i}
-                      className={`flex ${isGuest ? "justify-start" : "justify-end"} mb-2 w-full`}
-                    >
-                      <div
-                        className={`max-w-[85%] p-3.5 text-sm flex flex-col ${
-                          isGuest
-                            ? "bg-black text-white rounded-[20px] rounded-se-[4px] shadow-md"
-                            : "bg-white/95 dark:bg-slate-800/95 text-slate-800 dark:text-slate-100 rounded-[20px] rounded-ss-[4px] border border-slate-200/70 dark:border-slate-600/40 shadow-sm"
-                        }`}
-                      >
-                        <p
-                          className="whitespace-pre-wrap break-words leading-relaxed text-start"
-                          dir="auto"
-                        >
-                          {msg.content}
-                        </p>
-                        <div
-                          className={`text-[10px] mt-1.5 font-medium ${isGuest
-                              ? "text-slate-400 text-start"
-                              : "text-slate-500 dark:text-slate-400 text-end"
-                            }`}
-                        >
-                          {new Date(msg.createdAt || Date.now()).toLocaleTimeString(
-                            "ar-EG-u-nu-latn",
-                            { hour: "2-digit", minute: "2-digit" }
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
+            {/* Message Input */}
+            {ticket && (
+              <div className="p-4 bg-white/60 dark:bg-slate-800/70 border-t border-slate-200/50 dark:border-slate-700/50 shrink-0 relative z-10">
+                <form
+                  onSubmit={sendMessage}
+                  className="flex gap-2 bg-white/95 dark:bg-slate-700/90 rounded-full p-1 ps-4 border border-white/60 dark:border-slate-600/60 shadow-md dark:shadow-[0_5px_15px_rgba(0,0,0,0.2)] ring-1 ring-slate-900/5 dark:ring-white/5"
+                >
+                  <input
+                    type="text"
+                    placeholder={t("support.typeMessage")}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    className="flex-1 bg-transparent text-slate-900 dark:text-white text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim()}
+                    className="bg-slate-900 dark:bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-black dark:hover:bg-indigo-500 transition-colors disabled:opacity-50 shrink-0"
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
+                </form>
               </div>
             )}
-          </div>
-
-          {/* Message Input */}
-          {ticket && (
-            <div className="p-4 bg-white/60 dark:bg-slate-800/70 border-t border-slate-200/50 dark:border-slate-700/50 shrink-0 relative z-10">
-              <form
-                onSubmit={sendMessage}
-                className="flex gap-2 bg-white/95 dark:bg-slate-700/90 rounded-full p-1 ps-4 border border-white/60 dark:border-slate-600/60 shadow-md dark:shadow-[0_5px_15px_rgba(0,0,0,0.2)] ring-1 ring-slate-900/5 dark:ring-white/5"
-              >
-                <input
-                  type="text"
-                  placeholder={t("support.typeMessage")}
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 bg-transparent text-slate-900 dark:text-white text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className="bg-slate-900 dark:bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-black dark:hover:bg-indigo-500 transition-colors disabled:opacity-50 shrink-0"
-                >
-                  <ArrowUp className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          )}
-        </motion.div>
-      )}
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {!embedded &&

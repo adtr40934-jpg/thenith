@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useCallback } from "react";
-import Swal from "sweetalert2";
+
 import { useLanguage } from "../hooks/useLanguage.jsx";
 
 const ConfirmContext = createContext();
@@ -27,7 +27,8 @@ export function ConfirmProvider({ children }) {
               ? "#d97706"
               : "#4f46e5";
 
-        Swal.fire({
+        import("sweetalert2").then((Swal) => {
+          Swal.default.fire({
           title: options.title || (isRtl ? "تأكيد" : "Confirm"),
           text: options.message || "",
           icon: icon,
@@ -52,6 +53,7 @@ export function ConfirmProvider({ children }) {
           } else {
             resolve(false);
           }
+          });
         });
       });
     },

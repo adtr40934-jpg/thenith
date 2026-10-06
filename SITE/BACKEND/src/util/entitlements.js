@@ -90,6 +90,11 @@ function buildDashboardCardDTO(card, entitlements) {
     cardObj.actionType = "form";
   }
 
+  // Fallback theme to default if user doesn't have themeSelection entitlement
+  if (!f.themeSelection?.enabled && cardObj.theme) {
+    cardObj.theme = "default";
+  }
+
   return cardObj;
 }
 
@@ -120,6 +125,7 @@ function buildPublicCardDTO(card, entitlements) {
     actionType: (!f.calendarBooking?.enabled && cardObj.actionType === "calendar") ? "form" : cardObj.actionType,
     calendarSettings: cardObj.calendarSettings,
     isActive: cardObj.isActive,
+    theme: (f.themeSelection?.enabled && cardObj.theme) ? cardObj.theme : "default",
     createdAt: cardObj.createdAt,
     updatedAt: cardObj.updatedAt,
   };

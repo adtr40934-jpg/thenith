@@ -14,7 +14,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { saveProfile } from "../../panel/services/authApi.js";
 import ErrorNotice from "../../components/ErrorNotice.jsx";
 import { getLocalizedErrorMessage } from "../../utils/errorHandling.js";
-import toast from "react-hot-toast";
+import { toast } from "../../util/toast";
 import api from "../../api/index.js";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
@@ -44,7 +44,10 @@ export default function CheckoutPage() {
     api.payment.getMethods().then(res => {
       if (mounted && res.methods) {
         setMethods(res.methods);
-        if (res.methods.length > 0) setSelectedMethod(res.methods[0]);
+        if (res.methods.length > 0) {
+          const wallet = res.methods.find(m => m.payment_method_id === 4 || m.name_en?.toLowerCase().includes("wallet"));
+          setSelectedMethod(wallet || res.methods[0]);
+        }
       }
     }).catch(() => {});
     return () => { mounted = false; };
@@ -400,7 +403,15 @@ export default function CheckoutPage() {
                     <p className="text-sm font-bold text-slate-700 mb-2">
                       {isArabic ? "OOOO1 OO1USU,O O U,O_U?O1" : "Select Payment Gateway"}
                     </p>
-                    {methods.map(m => (
+                    {[...methods].sort((a, b) => {
+                      const getWeight = (m) => {
+                        if (m.payment_method_id === 4 || m.name_en?.toLowerCase().includes("wallet")) return 1;
+                        if (m.payment_method_id === 3 || m.name_en?.toLowerCase().includes("fawry")) return 2;
+                        if (m.payment_method_id === 2 || m.name_en?.toLowerCase().includes("card") || m.name_en?.toLowerCase().includes("visa")) return 3;
+                        return 4;
+                      };
+                      return getWeight(a) - getWeight(b);
+                    }).map(m => (
                       <label key={m.payment_method_id} className={`cursor-pointer p-3 border rounded-lg flex flex-col ${selectedMethod?.payment_method_id === m.payment_method_id ? 'border-indigo-500 bg-indigo-50/30' : 'border-slate-200'}`}>
                         <div className="flex items-center gap-3">
                           <input type="radio" name="fawaterak_method" checked={selectedMethod?.payment_method_id === m.payment_method_id} onChange={() => setSelectedMethod(m)} className="h-4 w-4 accent-indigo-600" />

@@ -39,16 +39,10 @@ export default function DashboardHeader({
   }, [showNotifications, onCloseNotifications]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md dark:border-slate-900 dark:bg-slate-950/90 md:px-8 lg:bg-white/85 lg:shadow-none">
+    <header dir="ltr" className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur-md dark:border-slate-900 dark:bg-slate-950/90 md:px-8 lg:bg-white/85 lg:shadow-none">
       <div className="mx-auto flex max-w-7xl items-center justify-between">
         <div className="flex items-center gap-3">
-          <ThenithLogo size="md" showBadge={false} />
-          {isPro && (
-            <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-200 to-yellow-400 px-2.5 py-0.5 text-[10px] font-black text-amber-900 shadow-sm">
-              <Sparkles className="h-3 w-3" />
-              PRO
-            </span>
-          )}
+          <ThenithLogo size="md" showBadge={false} isPro={isPro} />
         </div>
 
         <div className="flex items-center gap-2">
@@ -93,6 +87,7 @@ export default function DashboardHeader({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
+                  dir={language === "ar" ? "rtl" : "ltr"}
                   className="absolute end-0 top-12 z-50 w-72 sm:w-80 rounded-2xl border border-slate-100 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
                 >
                     <h3 className="mb-3 text-sm font-bold text-slate-800 dark:text-white">

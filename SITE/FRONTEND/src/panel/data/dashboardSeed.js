@@ -16,6 +16,7 @@ export const createEmptyCard = (name = "New Card") => ({
   },
   contacts: [],
   links: [],
+  theme: "default",
   actionType: "form",
   calendarSettings: {
     availableDates: [],
@@ -76,6 +77,7 @@ export function normalizeCard(card, index = 0) {
     ...fallback,
     ...card,
     id: card?.id || fallback.id,
+    theme: card?.theme || fallback.theme || "default", // EXPLICITLY SET THEME
     name: card?.name || fallback.name,
     link: card?.link || `https://thenith.com/cards/${card?.id || fallback.id}`,
     personal: { ...fallback.personal, ...(card?.personal || {}) },

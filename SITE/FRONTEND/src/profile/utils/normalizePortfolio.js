@@ -131,6 +131,7 @@ export function normalizePortfolio(data = {}) {
   const profile = {
     ...payload,
     id: payload.id || payload.publicId || "",
+    theme: payload.theme || "default", // EXPLICITLY SET THEME
     avatar: personal.avatar || payload.avatar || "",
     coverImage: personal.coverImage || payload.coverImage || "",
     name: personal.fullName || "",

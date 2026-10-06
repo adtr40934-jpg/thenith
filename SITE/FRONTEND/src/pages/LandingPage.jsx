@@ -701,6 +701,7 @@ export default function LandingPage() {
                     <img
                       src={src}
                       alt="Card"
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                   </Link>
@@ -730,6 +731,7 @@ export default function LandingPage() {
                     <img
                       src={src}
                       alt="NFC Card"
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                   </Link>

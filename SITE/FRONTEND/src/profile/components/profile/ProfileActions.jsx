@@ -15,7 +15,7 @@ export default function ProfileActions({
 
   return (
     <>
-      <div className="w-full max-w-md px-4 grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <div className="w-full max-w-md px-4 grid grid-cols-2 gap-3 mb-3">
         {cleanPhone && (
           <motion.a
             whileHover={{ scale: 1.02 }}
@@ -26,7 +26,7 @@ export default function ProfileActions({
             data-track-section="profile"
             data-track-label={labels.call}
             data-track-url={`tel:${cleanPhone}`}
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-sm cursor-pointer text-sm "
+            className="profile-btn-primary flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-950 hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors shadow-sm cursor-pointer text-sm "
           >
             <Phone className="w-4 h-4 fill-current shrink-0" />
             <span>{labels.call}</span>
@@ -45,7 +45,7 @@ export default function ProfileActions({
             data-track-section="profile"
             data-track-label={labels.whatsapp}
             data-track-url={whatsappLink}
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-white dark:bg-slate-950/60 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-800/80 hover:border-emerald-200 dark:hover:border-emerald-800/80 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all shadow-sm cursor-pointer text-sm "
+            className="profile-btn-secondary flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-white dark:bg-slate-950/60 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-800/80 hover:border-emerald-200 dark:hover:border-emerald-800/80 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all shadow-sm cursor-pointer text-sm "
           >
             <SiWhatsapp className="w-4 h-4 shrink-0" />
             <span>{labels.whatsapp}</span>
@@ -62,7 +62,7 @@ export default function ProfileActions({
           data-track-type="save_contact"
           data-track-section="profile"
           data-track-label={labels.saveContact}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-slate-100 dark:bg-slate-900/60 hover:bg-slate-200 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 transition-all shadow-sm border border-slate-200/40 dark:border-slate-800/50 cursor-pointer text-sm "
+          className="profile-btn-save w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium bg-slate-100 dark:bg-slate-900/60 hover:bg-slate-200 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 transition-all shadow-sm border border-slate-200/40 dark:border-slate-800/50 cursor-pointer text-sm "
         >
           <UserPlus className="w-4 h-4 text-slate-600 dark:text-slate-400 shrink-0" />
           <span>{labels.saveContact}</span>

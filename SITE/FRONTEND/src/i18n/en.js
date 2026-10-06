@@ -14,7 +14,10 @@ export const en = {
     logout: "Logout",
     support: "Contact support",
     supportDescription: "Continue your support conversation from this account.",
-    proFeatureOnly: "This feature is available on the Pro plan only.",
+    proFeatureOnly: "Upgrade Required",
+    proFeatureText: "This feature is only available in the Pro plan.",
+    limitReachedTitle: "Limit Reached",
+    limitReachedText: "You have reached the maximum allowed limit for your current plan.",
     linkLimitReached:
       "You have reached the maximum number of links for your plan.",
     coverImage: "Cover image",

@@ -74,10 +74,7 @@ export function getLocalizedErrorMessage(error, language) {
   }
 
   if (rawMessage) {
-    const hasArabic = /[\u0600-\u06ff]/.test(rawMessage);
-    const messageMatchesLanguage =
-      activeLanguage === "ar" ? hasArabic : !hasArabic;
-    if (messageMatchesLanguage) return rawMessage;
+    return rawMessage;
   }
 
   const statusKey = statusTranslations[status];

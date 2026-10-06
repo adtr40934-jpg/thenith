@@ -83,11 +83,7 @@ function clearRefreshCookie(response) {
 const requestCode = asyncHandler(async (request, response) => {
   const { email, purpose } = request.body || {};
   const normalizedEmail = email?.trim().toLowerCase();
-  console.log("[backend] /auth/request-code start", {
-    email: normalizedEmail,
-    purpose,
-    origin: request.headers.origin,
-  });
+
   if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail))
     throw new HttpError(400, "A valid email address is required");
   if (!["login", "register", "auto"].includes(purpose))
@@ -113,11 +109,7 @@ const requestCode = asyncHandler(async (request, response) => {
     throw new HttpError(429, "Please wait before requesting another code");
 
   const code = createOtp();
-  console.log("[backend] OTP generated for request-code", {
-    email: normalizedEmail,
-    purpose: actualPurpose,
-    codeLength: String(code).length,
-  });
+
   await OtpCode.findOneAndUpdate(
     { email: normalizedEmail, purpose: actualPurpose },
     {
@@ -130,11 +122,7 @@ const requestCode = asyncHandler(async (request, response) => {
   );
   sendOtpEmail({ email: normalizedEmail, code }).catch((err) => {
   });
-  console.log("[backend] /auth/request-code success", {
-    email: normalizedEmail,
-    purpose,
-    expiresInSeconds: OTP_TTL_MS / 1000,
-  });
+
   response.json({
     ok: true,
     expiresInSeconds: OTP_TTL_MS / 1000,
@@ -146,12 +134,7 @@ const requestCode = asyncHandler(async (request, response) => {
 const verifyCode = asyncHandler(async (request, response) => {
   const { email, code, purpose } = request.body || {};
   const normalizedEmail = email?.trim().toLowerCase();
-  console.log("[backend] /auth/verify-code start", {
-    email: normalizedEmail,
-    purpose,
-    codeLength: String(code || "").length,
-    origin: request.headers.origin,
-  });
+
   const record = await OtpCode.findOne({ email: normalizedEmail, purpose });
   if (!record || record.expiresAt <= new Date())
     throw new HttpError(400, "Code is invalid or expired");
@@ -160,11 +143,7 @@ const verifyCode = asyncHandler(async (request, response) => {
   if (record.codeHash !== hashOtp(code || "")) {
     record.attempts += 1;
     await record.save();
-    console.log("[backend] /auth/verify-code invalid code", {
-      email: normalizedEmail,
-      purpose,
-      attempts: record.attempts,
-    });
+
     throw new HttpError(400, "Code is invalid or expired");
   }
   await record.deleteOne();
@@ -173,9 +152,7 @@ const verifyCode = asyncHandler(async (request, response) => {
       normalizedEmail,
       "register",
     );
-    console.log("[backend] /auth/verify-code register branch success", {
-      email: normalizedEmail,
-    });
+
     response.json({ verificationToken });
     return;
   }
@@ -186,10 +163,7 @@ const verifyCode = asyncHandler(async (request, response) => {
     await user.save();
   }
   const accessToken = await issueSession(user, request, response);
-  console.log("[backend] /auth/verify-code login success", {
-    email: normalizedEmail,
-    userId: String(user._id),
-  });
+
   response.json({
     user: publicUser(user),
     accessToken,
@@ -201,10 +175,7 @@ const verifyCode = asyncHandler(async (request, response) => {
 const completeRegistration = asyncHandler(async (request, response) => {
   const { verificationToken, name, phone, address, jobTitle, company, bio } =
     request.body || {};
-  console.log("[backend] /auth/complete-registration start", {
-    hasToken: Boolean(verificationToken),
-    origin: request.headers.origin,
-  });
+
   let payload;
   try {
     payload = verifyVerificationToken(verificationToken, "register");
@@ -214,6 +185,7 @@ const completeRegistration = asyncHandler(async (request, response) => {
   if (!name?.trim()) throw new HttpError(400, "Name is required");
   if (await User.exists(emailLookup(payload.email)))
     throw new HttpError(409, "Email is already registered");
+  const userAvatar = `${env.AVATAR_API_URL}${encodeURIComponent(jobTitle?.trim() || name.trim())}`;
   const user = await User.create({
     email: payload.email,
     name: name.trim(),
@@ -221,6 +193,7 @@ const completeRegistration = asyncHandler(async (request, response) => {
     phone: phone?.trim() || "",
     address: address?.trim() || "",
     passwordHash: await bcrypt.hash(crypto.randomUUID(), 12),
+    avatar: userAvatar,
   });
   const freePlan = await Plan.findOne({ key: "free" });
   await Subscription.create({
@@ -238,6 +211,7 @@ const completeRegistration = asyncHandler(async (request, response) => {
       jobTitle: jobTitle?.trim() || "",
       company: company?.trim() || "",
       bio: bio?.trim() || "",
+      avatar: userAvatar,
     },
     links: [],
     contacts: [],
@@ -245,10 +219,7 @@ const completeRegistration = asyncHandler(async (request, response) => {
   user.activeCardId = firstCard._id;
   await user.save();
   const accessToken = await issueSession(user, request, response);
-  console.log("[backend] /auth/complete-registration success", {
-    email: user.email,
-    userId: String(user._id),
-  });
+
   response.status(201).json({
     user: publicUser(user),
     accessToken,
@@ -268,10 +239,12 @@ const register = asyncHandler(async (request, response) => {
   const normalizedEmail = email.trim().toLowerCase();
   if (await User.exists(emailLookup(normalizedEmail)))
     throw new HttpError(409, "Email is already registered");
+  const userAvatar = `${env.AVATAR_API_URL}${encodeURIComponent(name.trim())}`;
   const user = await User.create({
     email: normalizedEmail,
     name: name.trim(),
     passwordHash: await bcrypt.hash(password, 12),
+    avatar: userAvatar,
   });
   const freePlan = await Plan.findOne({ key: "free" });
   await Subscription.create({
@@ -581,10 +554,7 @@ const updateMe = asyncHandler(async (request, response) => {
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 const googleAuth = asyncHandler(async (request, response) => {
   const token = request.body?.token || request.body?.credential;
-  console.log("[backend] /auth/google start", {
-    hasToken: Boolean(token),
-    origin: request.headers.origin,
-  });
+
   if (!env.GOOGLE_CLIENT_ID) {
     throw new HttpError(
       500,
@@ -626,10 +596,7 @@ const googleAuth = asyncHandler(async (request, response) => {
 
   const email = googlePayload.email.trim().toLowerCase();
   let user = await findUserByEmail(email);
-  console.log("[backend] Google user lookup", {
-    email,
-    foundUser: Boolean(user),
-  });
+
 
   if (!user) {
     const verificationToken = createVerificationToken(email, "register");
@@ -642,10 +609,7 @@ const googleAuth = asyncHandler(async (request, response) => {
   }
 
   const accessToken = await issueSession(user, request, response);
-  console.log("[backend] Google login success", {
-    email,
-    userId: String(user._id),
-  });
+
   response.json({
     user: publicUser(user),
     accessToken,

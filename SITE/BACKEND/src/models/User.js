@@ -152,7 +152,7 @@ userSchema.pre(
       for (const u of users) {
         // We can just construct a fake context to call the cascade function
         const context = { _id: u._id, email: u.email };
-        await cascadeDeleteUser.call(context, () => {});
+        await cascadeDeleteUser.call(context, () => { });
       }
     } catch (err) {
     }

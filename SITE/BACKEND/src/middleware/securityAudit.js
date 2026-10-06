@@ -86,7 +86,7 @@ const securityAudit = async (req, res, next) => {
       anomalyScore: 80,
     })
       .then(emitLog)
-      .catch(() => {});
+      .catch(() => { });
 
     return res.status(403).json({ error: "Access Forbidden." });
   }
@@ -104,7 +104,7 @@ const securityAudit = async (req, res, next) => {
       anomalyScore: 100,
     })
       .then(emitLog)
-      .catch(() => {});
+      .catch(() => { });
 
     return res
       .status(403)

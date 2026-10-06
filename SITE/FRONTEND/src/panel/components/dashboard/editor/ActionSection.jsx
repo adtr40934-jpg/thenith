@@ -1,8 +1,8 @@
-import { Briefcase, CalendarDays, Check, Clock } from "lucide-react";
+import { Briefcase, CalendarDays, Check, Clock, Lock } from "lucide-react";
 import Field from "../../ui/Field.jsx";
 import MultiDatePicker from "../../ui/MultiDatePicker.jsx";
 
-export default function ActionSection({ t, language, card, permissions, onUpdateCard, onUpgrade }) {
+export default function ActionSection({ t, language, card, permissions, onUpdateCard, onUpgrade, isPro }) {
   const options = [
     {
       id: "form",
@@ -31,14 +31,17 @@ export default function ActionSection({ t, language, card, permissions, onUpdate
                 if (option.id === "calendar" && !permissions?.calendarBooking) {
                   import("sweetalert2").then((Swal) => {
                     Swal.default.fire({
-                      title: t("proFeatureOnly"),
+                      title: isPro ? t("limitReachedTitle") : t("proFeatureOnly"),
+                      text: isPro ? t("limitReachedText") : t("proFeatureText"),
                       icon: "warning",
-                      showCancelButton: true,
-                      confirmButtonText: language === "ar" ? "تصفح الباقات" : "View Plans",
+                      showCancelButton: !isPro,
+                      confirmButtonText: isPro 
+                        ? (language === "ar" ? "حسناً" : "OK") 
+                        : (language === "ar" ? "تصفح الباقات" : "View Plans"),
                       cancelButtonText: language === "ar" ? "إلغاء" : "Cancel",
                       confirmButtonColor: "#4f46e5",
                     }).then((result) => {
-                      if (result.isConfirmed && onUpgrade) {
+                      if (!isPro && result.isConfirmed && onUpgrade) {
                         onUpgrade();
                       }
                     });
@@ -53,17 +56,22 @@ export default function ActionSection({ t, language, card, permissions, onUpdate
               className={`rounded-2xl border p-5 text-end shadow-sm transition-all ltr:text-left disabled:cursor-not-allowed disabled:opacity-55 ${active
                   ? "border-indigo-300 bg-indigo-50 ring-2 ring-indigo-100 dark:border-indigo-700 dark:bg-indigo-950/30 dark:ring-indigo-950"
                   : "border-slate-100 bg-white hover:bg-slate-50 dark:border-slate-900 dark:bg-slate-950/45 dark:hover:bg-slate-900/60"
-                } ${option.id === "calendar" && !permissions?.calendarBooking ? "cursor-not-allowed opacity-55" : ""}`}
+                } ${option.id === "calendar" && !permissions?.calendarBooking ? "opacity-90" : ""}`}
             >
               <div className="mb-4 flex items-center justify-between">
                 <Icon
                   className={`h-6 w-6 ${active ? "text-indigo-600" : "text-slate-400"}`}
                 />
-                {active && (
-                  <span className="rounded-full bg-indigo-600 px-2.5 py-1 text-[10px] font-bold text-white">
-                    Active
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {option.id === "calendar" && !permissions?.calendarBooking && (
+                    <Lock className="h-4 w-4 text-amber-500 shrink-0" />
+                  )}
+                  {active && (
+                    <span className="rounded-full bg-indigo-600 px-2.5 py-1 text-[10px] font-bold text-white">
+                      Active
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="text-lg font-black">{option.title}</p>
               <p className="mt-2 text-sm leading-6 text-slate-500">

@@ -1,12 +1,16 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Globe, Moon, Settings, Sun, X } from "lucide-react";
 import { useLanguage } from "../../lib/LanguageContext.jsx";
+import { usePortfolio } from "../../lib/PortfolioContext.jsx";
 import SettingsOptionGroup from "./SettingsOptionGroup.jsx";
 import SettingsSegmentButton from "./SettingsSegmentButton.jsx";
 import SettingsTriggerButton from "./SettingsTriggerButton.jsx";
 
 export default function SettingsDrawer({ isOpen, setIsOpen }) {
   const { language, theme, t, setLanguage, setTheme } = useLanguage();
+  const { profile } = usePortfolio();
+
+  const isDefaultTheme = !profile?.theme || profile.theme === "default" || profile.theme === "01";
 
   return (
     <>
@@ -66,29 +70,31 @@ export default function SettingsDrawer({ isOpen, setIsOpen }) {
                   />
                 </SettingsOptionGroup>
 
-                <SettingsOptionGroup
-                  icon={
-                    theme === "dark" ? (
-                      <Moon className="w-4.5 h-4.5 text-slate-400" />
-                    ) : (
-                      <Sun className="w-4.5 h-4.5 text-slate-400" />
-                    )
-                  }
-                  label={t.settingsTheme}
-                >
-                  <SettingsSegmentButton
-                    active={theme === "light"}
-                    icon={Sun}
-                    label={t.settingsLightMode}
-                    onClick={() => setTheme("light")}
-                  />
-                  <SettingsSegmentButton
-                    active={theme === "dark"}
-                    icon={Moon}
-                    label={t.settingsDarkMode}
-                    onClick={() => setTheme("dark")}
-                  />
-                </SettingsOptionGroup>
+                {isDefaultTheme && (
+                  <SettingsOptionGroup
+                    icon={
+                      theme === "dark" ? (
+                        <Moon className="w-4.5 h-4.5 text-slate-400" />
+                      ) : (
+                        <Sun className="w-4.5 h-4.5 text-slate-400" />
+                      )
+                    }
+                    label={t.settingsTheme}
+                  >
+                    <SettingsSegmentButton
+                      active={theme === "light"}
+                      icon={Sun}
+                      label={t.settingsLightMode}
+                      onClick={() => setTheme("light")}
+                    />
+                    <SettingsSegmentButton
+                      active={theme === "dark"}
+                      icon={Moon}
+                      label={t.settingsDarkMode}
+                      onClick={() => setTheme("dark")}
+                    />
+                  </SettingsOptionGroup>
+                )}
               </div>
 
               <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">

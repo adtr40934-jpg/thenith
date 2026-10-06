@@ -10,7 +10,7 @@ export default function MobileNavigation({
   onSettingsOpen,
 }) {
   return (
-    <nav className="lg:hidden fixed bottom-0 start-0 end-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800/80 px-4 py-3 flex items-center justify-around shadow-lg transition-colors duration-300">
+    <nav className="profile-mobile-nav lg:hidden fixed bottom-0 start-0 end-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800/80 px-4 py-3 flex items-center justify-around shadow-lg transition-colors duration-300">
       {tabs.map((tab) => (
         <NavTabButton
           key={tab.id}

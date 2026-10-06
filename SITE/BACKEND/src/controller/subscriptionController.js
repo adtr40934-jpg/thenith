@@ -72,6 +72,10 @@ const createSubscriptionCheckout = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "Missing planId or billingPeriod" });
   }
 
+  if (!user.phone) {
+    return res.status(400).json({ error: "يجب إضافة رقم هاتف لحسابك أولاً لتفعيل الاشتراك." });
+  }
+
   const plan = await Plan.findById(planId);
   if (!plan) return res.status(404).json({ error: "Plan not found" });
 

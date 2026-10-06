@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Upload, User, Loader2 } from "lucide-react";
+import { Upload, User, Loader2, Lock } from "lucide-react";
 import Field from "../../ui/Field.jsx";
 import { isFeatureEnabled } from "../../../config/features.js";
 import api from "../../../../api/index.js";
 import { useGlobalLanguage } from "../../../../context/GlobalLanguageContext.jsx";
-import toast from "react-hot-toast";
+import { toast } from "../../../../util/toast";
 import { getLocalizedErrorMessage } from "../../../../utils/errorHandling.js";
 
 export default function PersonalSection({
@@ -16,6 +16,7 @@ export default function PersonalSection({
   onUploadStart,
   onUploadEnd,
   onUpgrade,
+  isPro,
 }) {
   const { language } = useGlobalLanguage();
   const isAr = language === "ar";
@@ -27,15 +28,18 @@ export default function PersonalSection({
       import("sweetalert2").then((Swal) => {
         Swal.default
           .fire({
-            title: t("proFeatureOnly"),
+            title: isPro ? t("limitReachedTitle") : t("proFeatureOnly"),
+            text: isPro ? t("limitReachedText") : t("proFeatureText"),
             icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: isAr ? "تصفح الباقات" : "View Plans",
+            showCancelButton: !isPro,
+            confirmButtonText: isPro 
+              ? (isAr ? "حسناً" : "OK") 
+              : (isAr ? "تصفح الباقات" : "View Plans"),
             cancelButtonText: isAr ? "إلغاء" : "Cancel",
             confirmButtonColor: "#4f46e5",
           })
           .then((result) => {
-            if (result.isConfirmed && onUpgrade) {
+            if (!isPro && result.isConfirmed && onUpgrade) {
               onUpgrade();
             }
           });
@@ -179,7 +183,7 @@ export default function PersonalSection({
           <div className="flex flex-col gap-2">
             <label
               className={`flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold transition-all ${
-                !permissions?.coverImage || uploadingField
+                uploadingField
                   ? "cursor-not-allowed opacity-50 bg-slate-100 text-slate-400 dark:border-slate-800 dark:bg-slate-900"
                   : "cursor-pointer text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
               }`}
@@ -192,6 +196,7 @@ export default function PersonalSection({
               {uploadingField === "cover"
                 ? `${t("uploading")} (${uploadProgress}%)`
                 : t("uploadCoverImage")}
+              {!permissions?.coverImage && <Lock className="h-4 w-4 text-amber-500 shrink-0" />}
               <input
                 type="file"
                 accept="image/*"

@@ -34,7 +34,7 @@ export default function HireRequestForm() {
     if (profile?.id) {
       fetchMyRequests(profile.id)
         .then((res) => setSubmittedRequests(res.requests || []))
-        .catch((err) => );
+        .catch((err) => {});
     }
   }, [profile?.id]);
 

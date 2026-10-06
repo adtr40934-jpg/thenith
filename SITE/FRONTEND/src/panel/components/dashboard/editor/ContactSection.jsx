@@ -49,6 +49,7 @@ export default function ContactSection({
   onUpdateCard,
   showValidation,
   onUpgrade,
+  isPro,
 }) {
   const { confirm } = useConfirm();
   const { language } = useGlobalLanguage();
@@ -58,14 +59,17 @@ export default function ContactSection({
   const showUpgradeMessage = () => {
     import("sweetalert2").then((Swal) => {
       Swal.default.fire({
-        title: t("proFeatureOnly"),
+        title: isPro ? t("limitReachedTitle") : t("proFeatureOnly"),
+        text: isPro ? t("limitReachedText") : t("proFeatureText"),
         icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: isAr ? "تصفح الباقات" : "View Plans",
+        showCancelButton: !isPro,
+        confirmButtonText: isPro 
+          ? (isAr ? "حسناً" : "OK") 
+          : (isAr ? "تصفح الباقات" : "View Plans"),
         cancelButtonText: isAr ? "إلغاء" : "Cancel",
         confirmButtonColor: "#4f46e5",
       }).then((result) => {
-        if (result.isConfirmed && onUpgrade) {
+        if (!isPro && result.isConfirmed && onUpgrade) {
           onUpgrade();
         }
       });

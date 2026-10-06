@@ -100,7 +100,7 @@ export default function MessagesPage({
   };
 
   return (
-    <section className="space-y-4 p-1.5 sm:p-3 md:p-0">
+    <section className="space-y-4 p-0 sm:p-3 md:p-0">
       <div className="flex flex-col justify-between gap-3 rounded-[20px] bg-white p-3 shadow-sm dark:bg-slate-950/45 sm:flex-row sm:items-center sm:rounded-[24px] sm:p-4 md:bg-transparent md:p-0 md:shadow-none">
         <div>
           <h1 className="text-2xl font-black">{inboxLabel}</h1>

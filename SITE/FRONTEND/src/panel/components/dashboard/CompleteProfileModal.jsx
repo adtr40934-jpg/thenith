@@ -39,8 +39,8 @@ export default function CompleteProfileModal({
       return;
     }
 
-    if (!/^01[0-2,5][0-9]{8}$/.test(cleanPhone)) {
-      setError(t("panel.errors.invalidPhone"));
+    if (!/^01[0125][0-9]{8}$/.test(cleanPhone)) {
+      setError(language === "ar" ? "رقم الهاتف غير صحيح " : "Invalid phone number.");
       return;
     }
 
@@ -86,25 +86,12 @@ export default function CompleteProfileModal({
           <X className="w-4 h-4" />
         </button>
 
-        {/* Icon & Title */}
-        <div className="flex items-center gap-3.5 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 shadow-inner">
-            <ShieldCheck className="w-6 h-6 text-indigo-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-white">
-              استكمال بيانات الدفع
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {t("oneQuickStep")} لمتابعة عملية الدفع بأمان
-            </p>
-          </div>
+        {/* Title */}
+        <div className="mb-6">
+          <h3 className="text-lg font-black text-white text-center">
+            {language === "ar" ? "استكمال بيانات الملف الشخصي" : "Complete Profile Information"}
+          </h3>
         </div>
-
-        <p className="text-xs text-slate-300 mb-6 leading-relaxed bg-white/5 p-3.5 rounded-2xl border border-white/5">
-          تشترط بوابة الدفع تسجيل رقم الهاتف لإصدار الفاتورة وتأكيد عمليتك
-          بنجاح. سيتم حفظ هذا الرقم في ملفك الشخصي.
-        </p>
 
         <ErrorNotice error={error} language={language} className="mb-5" />
 
@@ -123,7 +110,7 @@ export default function CompleteProfileModal({
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="أدخل اسمك"
+                  placeholder={language === "ar" ? "أدخل اسمك" : "Enter your name"}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl pe-10 ps-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
@@ -133,7 +120,7 @@ export default function CompleteProfileModal({
           {/* Phone Field */}
           <div>
             <label className="block text-xs font-bold text-slate-300 mb-1.5">
-              رقم الهاتف <span className="text-rose-400">*</span>
+              {language === "ar" ? "رقم الهاتف" : "Phone Number"} <span className="text-rose-400">*</span>
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 end-0 pe-3.5 flex items-center pointer-events-none text-slate-500">
@@ -160,7 +147,7 @@ export default function CompleteProfileModal({
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  <span>حفظ ومتابعة الدفع</span>
+                  <span>{language === "ar" ? "حفظ ومتابعة" : "Save and Continue"}</span>
                   <ArrowRight className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                 </>
               )}
@@ -171,7 +158,7 @@ export default function CompleteProfileModal({
               disabled={saving}
               className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl text-sm transition-colors"
             >
-              {t("cancelLabel")}
+              {language === "ar" ? "إلغاء" : "Cancel"}
             </button>
           </div>
         </form>

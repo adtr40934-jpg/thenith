@@ -39,17 +39,22 @@ export default function CardsPage({
   const [shareCardId, setShareCardId] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  const isPro = entitlements?.plan === "pro";
+
   const showUpgradeMessage = () => {
     import("sweetalert2").then((Swal) => {
       Swal.default.fire({
-        title: t("proFeatureOnly"),
+        title: isPro ? t("limitReachedTitle") : t("proFeatureOnly"),
+        text: isPro ? t("limitReachedText") : undefined,
         icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: language === "ar" ? "تصفح الباقات" : "View Plans",
+        showCancelButton: !isPro,
+        confirmButtonText: isPro 
+          ? (language === "ar" ? "حسناً" : "OK") 
+          : (language === "ar" ? "تصفح الباقات" : "View Plans"),
         cancelButtonText: language === "ar" ? "إلغاء" : "Cancel",
         confirmButtonColor: "#4f46e5",
       }).then((result) => {
-        if (result.isConfirmed && onUpgrade) {
+        if (!isPro && result.isConfirmed && onUpgrade) {
           onUpgrade();
         }
       });
@@ -122,7 +127,7 @@ export default function CardsPage({
       : 0);
 
   return (
-    <section className="space-y-4 p-1.5 sm:p-3 md:p-0">
+    <section className="space-y-4 p-0 sm:p-3 md:p-0">
       <div className="flex flex-col justify-between gap-3 rounded-[20px] bg-white p-3 shadow-sm dark:bg-slate-950/45 sm:flex-row sm:items-center sm:rounded-[24px] sm:p-4 md:bg-transparent md:p-0 md:shadow-none">
         <div className="min-w-0">
           <h1 className="text-[clamp(1.35rem,5vw,1.5rem)] font-black">

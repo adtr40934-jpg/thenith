@@ -21,8 +21,20 @@ export function AuthProvider({ children }) {
   const didInit = useRef(false);
 
   useEffect(() => {
-    // Clickjacking protection: prevent iframe embedding
-    if (window.top !== window) {
+    // Clickjacking protection: prevent iframe embedding (unless it's a live preview)
+    try {
+      if (
+        window.top !== window &&
+        !window.location.search.includes("preview_theme=")
+      ) {
+        // Only allow same-origin iframes
+        if (window.top.location.origin !== window.location.origin) {
+          window.top.location.href = window.location.href;
+          return;
+        }
+      }
+    } catch (e) {
+      // Cross-origin access error
       window.top.location.href = window.location.href;
       return;
     }

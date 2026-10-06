@@ -81,6 +81,7 @@ const cardSchema = new mongoose.Schema(
     appointments: { type: [mongoose.Schema.Types.Mixed], default: [] },
     analytics: { type: mongoose.Schema.Types.Mixed, default: {} },
     isActive: { type: Boolean, default: true },
+    theme: { type: String, default: "default" },
     nfcLinkedAt: { type: Date, default: null }, // Timestamp of last successful NFC write
   },
   { timestamps: true },

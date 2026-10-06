@@ -20,7 +20,7 @@ import {
   cancelAppointment,
 } from "../../services/appointmentApi.js";
 import BookedAppointmentsList from "./BookedAppointmentsList.jsx";
-import toast from "react-hot-toast";
+import { toast } from "../../../util/toast";
 import { getLocalizedErrorMessage } from "../../../utils/errorHandling.js";
 
 function toDateKey(date) {

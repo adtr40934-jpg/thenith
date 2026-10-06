@@ -20,7 +20,7 @@ try {
   await seedPlans();
   await backfillPublicIds();
   const stopJobs = startJobs();
-  server.listen(env.PORT, () => { console.log(`🔥 Server is running flawlessly on port ${env.PORT}`); });
+  server.listen(env.PORT, () => { console.log(`Server is running flawlessly on port ${env.PORT}`); });
 
   const shutdown = async (signal) => {
     stopJobs?.();

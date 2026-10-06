@@ -106,6 +106,10 @@ export const createOrder = async (req, res) => {
         .json({ error: "Sign in before placing an order." });
     }
 
+    if (!req.user.phone) {
+      return res.status(400).json({ error: "يجب إضافة رقم هاتف لحسابك قبل إتمام الطلب." });
+    }
+
     // 1. Fetch real prices from database
     const productIds = items.map((item) => item.productId || item.id);
     const productsFromDb = await Product.find({ _id: { $in: productIds } });

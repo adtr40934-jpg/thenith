@@ -108,6 +108,7 @@ export default function ProductDetailsPage() {
                 <img
                   src={product.images[selectedImage]}
                   alt={product.name}
+                  fetchPriority="high"
                   className="w-full h-full object-contain rounded-2xl transition-transform duration-500 bg-white"
                 />
               ) : (
@@ -132,6 +133,7 @@ export default function ProductDetailsPage() {
                     <img
                       src={img}
                       alt=""
+                      loading="lazy"
                       className="w-full h-full object-contain bg-white p-2"
                     />
                   </button>

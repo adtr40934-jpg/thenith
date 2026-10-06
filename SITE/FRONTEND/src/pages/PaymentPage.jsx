@@ -447,7 +447,8 @@ export default function PaymentPage({ overrideParams, onClose }) {
       }
 
       if (!foundPending && list.length > 0 && !selectedMethod) {
-        setSelectedMethod(list[0]);
+        const wallet = list.find(isWalletMethod);
+        setSelectedMethod(wallet || list[0]);
       }
 
       setLoading(false);
@@ -923,30 +924,30 @@ export default function PaymentPage({ overrideParams, onClose }) {
                             ? "تعليمات الدفع:"
                             : "Payment Instructions:"}
                         </h5>
-                        <p className="flex items-start gap-2">
+                        <div className="flex items-start gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
                           <span>
                             {isArabic
                               ? "توجه إلى أقرب ماكينة فوري أو استخدم تطبيق MyFawry."
                               : "Go to the nearest Fawry machine or use MyFawry app."}
                           </span>
-                        </p>
-                        <p className="flex items-start gap-2">
+                        </div>
+                        <div className="flex items-start gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
                           <span>
                             {isArabic
                               ? "اختر الدفع بكود فوري باي (FawryPay)."
                               : "Select payment using FawryPay code."}
                           </span>
-                        </p>
-                        <p className="flex items-start gap-2">
+                        </div>
+                        <div className="flex items-start gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0"></div>
                           <span>
                             {isArabic
                               ? "أدخل الكود المرجعي الموضح أعلاه وأتمم عملية الدفع."
                               : "Enter the reference code shown above and complete the payment."}
                           </span>
-                        </p>
+                        </div>
                       </div>
                     )}
 
@@ -1213,13 +1214,22 @@ export default function PaymentPage({ overrideParams, onClose }) {
                 </h3>
 
                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-8">
-                  {methods
+                  {[...methods]
                     .filter(
                       (m) =>
                         !iframeUrl ||
                         selectedMethod?.payment_method_id ===
                           m.payment_method_id,
                     )
+                    .sort((a, b) => {
+                      const getWeight = (m) => {
+                        if (isWalletMethod(m)) return 1;
+                        if (isFawryMethod(m)) return 2;
+                        if (isCardMethod(m)) return 3;
+                        return 4;
+                      };
+                      return getWeight(a) - getWeight(b);
+                    })
                     .map((method) => {
                       const isSelected =
                         selectedMethod?.payment_method_id ===

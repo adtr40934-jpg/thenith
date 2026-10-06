@@ -8,6 +8,7 @@ export function sanitizeOrder(order) {
   const o = typeof order.toObject === "function" ? order.toObject() : order;
   return {
     id: o._id ? o._id.toString() : undefined,
+    _id: o._id ? o._id.toString() : undefined,
     orderNumber: o.orderNumber,
     customer: o.customer,
     items: o.items,
@@ -30,6 +31,7 @@ export function sanitizeCustomerService(cs) {
   const o = typeof cs.toObject === "function" ? cs.toObject() : cs;
   return {
     id: o._id ? o._id.toString() : undefined,
+    _id: o._id ? o._id.toString() : undefined,
     name: o.name,
     email: o.email,
     status: o.status,
@@ -46,6 +48,7 @@ export function sanitizeChatMessage(msg) {
   const o = typeof msg.toObject === "function" ? msg.toObject() : msg;
   return {
     id: o._id ? o._id.toString() : undefined,
+    _id: o._id ? o._id.toString() : undefined,
     customerServiceId: o.customerService ? o.customerService.toString() : undefined,
     senderModel: o.senderModel,
     senderId: o.senderId,
@@ -61,6 +64,7 @@ export function sanitizeNotification(notif) {
   const o = typeof notif.toObject === "function" ? notif.toObject() : notif;
   return {
     id: o._id ? o._id.toString() : undefined,
+    _id: o._id ? o._id.toString() : undefined,
     type: o.type,
     title: o.title,
     message: o.message,

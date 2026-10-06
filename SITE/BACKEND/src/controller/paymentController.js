@@ -421,6 +421,10 @@ export const createSubscriptionPayment = asyncHandler(async (req, res) => {
       .json({ error: "planId and billingPeriod are required" });
   }
 
+  if (!user.phone) {
+    return res.status(400).json({ error: "يجب إضافة رقم هاتف لحسابك من صفحة الملف الشخصي أولاً لتفعيل الاشتراك." });
+  }
+
   // Check if there are any existing pending transactions for subscriptions
   const pendingTxs = await PaymentTransaction.find({
     userId: user._id,
@@ -580,6 +584,10 @@ export const createOrderPayment = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { methodId, walletNumber } = req.body;
   const user = req.user;
+
+  if (!user.phone) {
+    return res.status(400).json({ error: "يجب إضافة رقم هاتف لحسابك من صفحة الملف الشخصي أولاً لإتمام الطلب." });
+  }
 
   let order = await Order.findById(orderId);
   let draft = null;

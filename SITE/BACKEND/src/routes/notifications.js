@@ -13,8 +13,6 @@ router.patch("/:id/read", requireAuth, notificationsController.markRead);
 router.delete("/", requireAuth, notificationsController.clearAll);
 router.delete("/:id", requireAuth, notificationsController.deleteOne);
 
-// Admin routes (use cookie-based admin auth, no requireAuth)
-router.post("/push", notificationsController.sendPushNotification);
-router.get("/users", notificationsController.getUsers);
+
 
 export default router;

@@ -256,7 +256,6 @@ export function useDashboardData() {
   const updateActiveCard = (patcher) => {
     if (!activeCard) return;
     updateCard(activeCard.id, patcher);
-    addNotification("تم تحديث بيانات البطاقة بنجاح");
   };
 
   const saveActiveCard = async () => {

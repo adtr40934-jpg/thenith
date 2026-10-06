@@ -13,7 +13,7 @@ import api from "../../../api/index.js";
 import { useGlobalLanguage } from "../../../context/GlobalLanguageContext.jsx";
 import { formatMoney } from "../../../pages/store/storeApi.js";
 import { AnimatePresence, motion } from "framer-motion";
-import toast from "react-hot-toast";
+import { toast } from "../../../util/toast";
 import UnifiedPaymentBox from "./UnifiedPaymentBox.jsx";
 
 export default function PendingPaymentAlert() {

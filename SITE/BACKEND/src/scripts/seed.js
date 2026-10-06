@@ -20,6 +20,7 @@ const NEW_FREE_PLAN = {
     advancedAnalytics: false,
     prioritySupport: false,
     futureFeatures: false,
+    themeSelection: false,
   },
   marketingFeatures: [
     { name: { ar: "إضافة وسائل الاتصال", en: "Add Contact Methods" }, enabled: true },
@@ -33,7 +34,7 @@ const NEW_FREE_PLAN = {
 
 const NEW_PRO_PLAN = {
   name: { ar: "Pro", en: "Pro" },
-  prices: { monthly: 99, yearly: 699 },
+  prices: { monthly: 149, yearly: 1499 },
   limits: { maxLinks: null, maxCards: 5, monthlyBusinessRequests: null },
   features: {
     contactMethods: true,
@@ -49,6 +50,7 @@ const NEW_PRO_PLAN = {
     advancedAnalytics: true,
     prioritySupport: true,
     futureFeatures: true,
+    themeSelection: true,
   },
   marketingFeatures: [
     { name: { ar: "شارة Thenith الموثقة", en: "Verified Thenith Badge" }, enabled: true },
@@ -57,6 +59,7 @@ const NEW_PRO_PLAN = {
     { name: { ar: "تغيير صورة الغلاف", en: "Cover Image" }, enabled: true },
     { name: { ar: "رابط مخصص احترافي", en: "Professional Custom Link" }, enabled: true },
     { name: { ar: "ترتيب صفحة الروابط", en: "Reorder Links Page" }, enabled: true },
+    { name: { ar: "اختيار مظهر", en: "Choose Appearance" }, enabled: true },
     { name: { ar: "إنشاء 5 بطاقات عمل", en: "Create 5 Business Cards" }, enabled: true },
     { name: { ar: "الحصول على طلبات عمل بلا حدود", en: "Unlimited Business Requests" }, enabled: true },
     { name: { ar: "حفظ جهة الاتصال", en: "Save Contact" }, enabled: true },

@@ -7,6 +7,7 @@ import PersonalSection from "./editor/PersonalSection.jsx";
 import ContactSection from "./editor/ContactSection.jsx";
 import LinksSection from "./editor/LinksSection.jsx";
 import ActionSection from "./editor/ActionSection.jsx";
+import ThemeSection from "./editor/ThemeSection.jsx";
 
 export default function CardEditor({
   t,
@@ -19,6 +20,7 @@ export default function CardEditor({
   showLinkPicker,
   customLinkOpen,
   permissions,
+  entitlements,
   onUpgrade,
   onBack,
   onChangeSection,
@@ -45,6 +47,7 @@ export default function CardEditor({
   const [showValidation, setShowValidation] = useState(false);
   // Remove internal isUploading; use prop isUploading
   // Remove uploadCallbacks defined here; will receive via props
+  const isPro = entitlements?.plan === "pro";
 
   const handleSave = async () => {
     setSaveState("saving");
@@ -66,8 +69,8 @@ export default function CardEditor({
   };
 
   return (
-    <section className="space-y-4 p-1.5 sm:p-3 md:p-0">
-      <div className="space-y-3 rounded-[20px] bg-white p-3 shadow-sm dark:bg-slate-950/45 sm:rounded-[24px] sm:space-y-4 sm:p-4 md:bg-transparent md:p-0 md:shadow-none">
+    <section className="space-y-4 p-0 sm:p-3 md:p-0">
+      <div className="space-y-3 bg-transparent p-0 sm:rounded-[24px] sm:space-y-4 sm:bg-white sm:p-4 sm:shadow-sm dark:sm:bg-slate-950/45 md:bg-transparent md:p-0 md:shadow-none">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div className="min-w-0">
             <p className="text-xs font-black text-indigo-600">
@@ -86,8 +89,12 @@ export default function CardEditor({
         </div>
         <EditorTabs
           t={t}
+          language={language}
           activeSection={section}
           onChangeSection={onChangeSection}
+          permissions={permissions}
+          entitlements={entitlements}
+          onUpgrade={onUpgrade}
         />
       </div>
 
@@ -96,6 +103,7 @@ export default function CardEditor({
           t={t}
           card={card}
           permissions={permissions}
+          isPro={isPro}
           onUpgrade={onUpgrade}
           onUpdateCard={onUpdateCard}
           onUpdatePersonal={onUpdatePersonal}
@@ -108,6 +116,7 @@ export default function CardEditor({
           t={t}
           card={card}
           permissions={permissions}
+          isPro={isPro}
           onUpgrade={onUpgrade}
           showContactMenu={showContactMenu}
           onToggleContactMenu={onToggleContactMenu}
@@ -124,6 +133,7 @@ export default function CardEditor({
           t={t}
           language={language}
           permissions={permissions}
+          isPro={isPro}
           onUpgrade={onUpgrade}
           card={card}
           linkDraft={linkDraft}
@@ -146,7 +156,17 @@ export default function CardEditor({
           language={language}
           card={card}
           permissions={permissions}
+          isPro={isPro}
           onUpgrade={onUpgrade}
+          onUpdateCard={onUpdateCard}
+        />
+      )}
+
+      {section === "theme" && (
+        <ThemeSection
+          t={t}
+          language={language}
+          card={card}
           onUpdateCard={onUpdateCard}
         />
       )}
