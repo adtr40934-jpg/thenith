@@ -6,6 +6,14 @@ const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   PORT: z.coerce.number().int().positive().default(4001),
+  APP_URL: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().default("http://localhost:3000"),
+  ),
+  SITE_URL: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().default("http://localhost:3000"),
+  ),
   CLIENT_ORIGIN: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : value),
     z.string().default("http://localhost:5173,http://localhost:3000"),

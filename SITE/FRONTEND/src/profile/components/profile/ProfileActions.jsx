@@ -1,17 +1,32 @@
 import { Phone, UserPlus } from "lucide-react";
 import { SiWhatsapp } from "@icons-pack/react-simple-icons";
 import { motion } from "motion/react";
+import { usePortfolio } from "../../lib/PortfolioContext.jsx";
+import { trackClick } from "../../services/portfolioService.js";
 
 export default function ProfileActions({
   contact = {},
   labels,
   onSaveContact,
 }) {
+  const { profile } = usePortfolio();
   const phone = contact.phone || "";
   const whatsapp = contact.whatsapp || phone;
-  const cleanPhone = phone.replace(/\\s+/g, "");
+  const cleanPhone = phone.replace(/\s+/g, "");
   const whatsappPhone = whatsapp.replace(/[^0-9]/g, "");
   const whatsappLink = whatsappPhone ? `https://wa.me/${whatsappPhone}` : "";
+
+  const handlePhoneClick = () => {
+    if (profile?.id && cleanPhone) {
+      trackClick(profile.id, `tel:${cleanPhone}`).catch(() => {});
+    }
+  };
+
+  const handleWhatsappClick = () => {
+    if (profile?.id && whatsappLink) {
+      trackClick(profile.id, whatsappLink).catch(() => {});
+    }
+  };
 
   return (
     <>
@@ -21,6 +36,7 @@ export default function ProfileActions({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             href={`tel:${cleanPhone}`}
+            onClick={handlePhoneClick}
             data-track-click="true"
             data-track-type="call"
             data-track-section="profile"
@@ -40,6 +56,7 @@ export default function ProfileActions({
             href={whatsappLink}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleWhatsappClick}
             data-track-click="true"
             data-track-type="whatsapp"
             data-track-section="profile"

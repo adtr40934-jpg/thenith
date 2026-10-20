@@ -89,8 +89,8 @@ export default function PersonalSection({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-900 dark:bg-slate-950/45">
-      <div className="mb-6 grid gap-4 md:grid-cols-1">
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm dark:border-slate-900 dark:bg-slate-950/45">
+      <div className="mb-4 sm:mb-6 grid gap-3.5 sm:gap-4 md:grid-cols-1">
         <Field
           label={t("cardName")}
           value={card.name}
@@ -99,16 +99,22 @@ export default function PersonalSection({
           }
         />
       </div>
-      <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+      <div className="mb-4 sm:mb-6 flex flex-col items-start gap-3.5 sm:gap-4 sm:flex-row sm:items-center">
         <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900">
-          {card.personal.avatar ? (
+          {card.personal?.avatar ? (
             <img
               src={card.personal.avatar}
               alt=""
               className={`h-full w-full object-cover transition-opacity ${uploadingField === "avatar" ? "opacity-50" : "opacity-100"}`}
             />
           ) : (
-            <User className="h-10 w-10 text-slate-400" />
+            <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400 select-none">
+              {card.personal?.fullName?.trim()
+                ? Array.from(card.personal.fullName.trim())[0].toUpperCase()
+                : card.name?.trim()
+                  ? Array.from(card.name.trim())[0].toUpperCase()
+                  : "U"}
+            </span>
           )}
           {uploadingField === "avatar" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 p-2 text-white">
@@ -224,7 +230,7 @@ export default function PersonalSection({
           </div>
         )}
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3.5 sm:gap-4 md:grid-cols-2">
         <Field
           label={t("fullName")}
           value={card.personal.fullName}

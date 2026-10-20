@@ -1,10 +1,34 @@
 import nodemailer from "nodemailer";
 import dns from "dns";
+import net from "net";
 import _env9847 from "../config/env.js";
 const { env } = _env9847;
 
 let currentTransporter = null;
 let currentConfigKey = "";
+
+// Dynamic DNS cache for SMTP host to prevent nodemailer's internal c-ares timeout on Windows
+let cachedHostIp = null;
+let lastLookupTime = 0;
+
+async function resolveHostIp(hostname) {
+  if (!hostname || net.isIP(hostname)) return hostname;
+  const now = Date.now();
+  if (cachedHostIp && now - lastLookupTime < 300000) {
+    return cachedHostIp;
+  }
+  try {
+    const result = await dns.promises.lookup(hostname);
+    if (result?.address) {
+      cachedHostIp = result.address;
+      lastLookupTime = now;
+      return result.address;
+    }
+  } catch (err) {
+    console.warn(`[Mail] DNS lookup failed for ${hostname}:`, err.message);
+  }
+  return hostname;
+}
 
 function getMailFromEmail() {
   const mailFrom = (env.MAIL_FROM || "").trim();
@@ -31,7 +55,7 @@ function getFromAddress(messageType) {
   };
 }
 
-function getTransporter() {
+async function getTransporter() {
   if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) return null;
 
   const configKey = `${env.SMTP_HOST}:${env.SMTP_PORT}:${env.SMTP_USER}:${env.SMTP_PASSWORD}:${env.SMTP_SECURE}`;
@@ -39,34 +63,28 @@ function getTransporter() {
     return currentTransporter;
   }
 
-  const isGmail = env.SMTP_HOST.includes("gmail");
+  // Pre-resolve host IP to bypass Node's internal c-ares DNS timeout on Windows
+  const targetHost = await resolveHostIp(env.SMTP_HOST);
+
   const transportConfig = {
-    host: env.SMTP_HOST,
+    host: targetHost,
     port: Number(env.SMTP_PORT) || (Boolean(env.SMTP_SECURE) ? 465 : 587),
     secure: Boolean(env.SMTP_SECURE) || Number(env.SMTP_PORT) === 465,
-    pool: true, // Reuse TCP connections for instant sending
+    pool: true,
     maxConnections: 5,
     maxMessages: 100,
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASSWORD,
     },
-    connectionTimeout: 8000,
-    greetingTimeout: 4000,
-    socketTimeout: 8000,
+    tls: {
+      servername: env.SMTP_HOST,
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000,
   };
-
-  if (isGmail) {
-    transportConfig.lookup = (hostname, options, callback) => {
-      dns.lookup(hostname, options, (err, address, family) => {
-        if (err && hostname === "smtp.gmail.com") {
-          callback(null, "172.253.143.109", 4);
-        } else {
-          callback(err, address, family);
-        }
-      });
-    };
-  }
 
   currentTransporter = nodemailer.createTransport(transportConfig);
   currentConfigKey = configKey;
@@ -74,7 +92,7 @@ function getTransporter() {
 }
 
 async function sendMail({ to, subject, html, text, messageType }) {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   if (!transporter) {
     console.warn(
       `[Mail Warning] SMTP is not configured; unable to send email to ${to}`,
@@ -83,7 +101,7 @@ async function sendMail({ to, subject, html, text, messageType }) {
   }
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: getFromAddress(messageType),
       to,
       subject,
@@ -92,12 +110,17 @@ async function sendMail({ to, subject, html, text, messageType }) {
     });
     return true;
   } catch (err) {
+    console.error(`[Mail Error] Failed to send email to ${to}:`, err.message || err);
     return false;
   }
 }
 
 async function sendOtpEmail({ email, code }) {
-  await sendMail({
+  if (env.NODE_ENV !== "production") {
+    console.log(`[OTP] ${email} -> ${code}`);
+  }
+
+  return await sendMail({
     to: email,
     subject: "Your Thenith verification code",
     text: `Your Thenith verification code is ${code}. It expires in 10 minutes.`,

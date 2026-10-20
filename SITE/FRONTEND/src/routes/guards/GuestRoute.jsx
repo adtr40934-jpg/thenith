@@ -26,7 +26,15 @@ export default function GuestRoute({ children }) {
       !rawReturnTo.startsWith("//") &&
       !rawReturnTo.includes(":");
 
-    const from = location.state?.from?.pathname || (isSafeReturnTo ? rawReturnTo : `/u`);
+    const targetFrom = location.state?.from?.pathname;
+    const defaultTarget = user?.publicId ? `/u/${user.publicId}` : "/u";
+    const from =
+      targetFrom && targetFrom !== "/"
+        ? targetFrom
+        : isSafeReturnTo && rawReturnTo !== "/"
+          ? rawReturnTo
+          : defaultTarget;
+
     return <Navigate to={from} replace />;
   }
 

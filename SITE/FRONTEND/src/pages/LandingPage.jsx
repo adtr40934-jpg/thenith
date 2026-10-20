@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   Menu,
   X,
@@ -30,6 +31,7 @@ import {
 
 import GlobalLogo from "../components/GlobalLogo.jsx";
 import { useGlobalLanguage } from "../context/GlobalLanguageContext.jsx";
+import { getLandingPageSeoData, applyPageSeo } from "../utils/seo.js";
 
 const LANDING_CARD_IMAGES = (import.meta.env.VITE_LANDING_CARD_IMAGES || "")
   .split(",")
@@ -179,7 +181,16 @@ const DeviceShowcase = () => {
 };
 
 export default function LandingPage() {
+  const { isAuthenticated, user, isInitializing } = useAuth();
   const { t, language } = useGlobalLanguage();
+
+  if (isInitializing) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={user?.publicId ? `/u/${user.publicId}` : "/u"} replace />;
+  }
   const [hoverDash, setHoverDash] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -206,14 +217,14 @@ export default function LandingPage() {
   }, [isCarouselPaused]);
 
   useEffect(() => {
-    document.title = "Thenith";
+    applyPageSeo(getLandingPageSeoData(language));
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, []);
+  }, [language]);
 
   return (
     <div
@@ -221,9 +232,6 @@ export default function LandingPage() {
       className="relative min-h-screen bg-[#FBFBFD] text-[#1d1d1f] antialiased selection:bg-[#1d1d1f] selection:text-white overflow-hidden"
       style={{ fontFamily: '"Rubik", sans-serif' }}
     >
-      <style>
-        {`@import url('https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');`}
-      </style>
 
       {/* SOFT MESH GRADIENT BACKGROUND (Purple leaning) */}
       {/* SOFT MESH GRADIENT BACKGROUND (Animated Aurora) */}
@@ -518,21 +526,27 @@ export default function LandingPage() {
                 <Monitor className="w-8 h-8" />
               </div>
               <h3 className="text-[28px] md:text-[36px] font-bold mb-6 leading-[1.4] text-[#1d1d1f]">
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: t("landing.feature2Title"),
-                  }}
-                />
+                {String(t("landing.feature2Title") || "")
+                  .split(/<br\s*\/?>/i)
+                  .map((chunk, i, arr) => (
+                    <React.Fragment key={i}>
+                      {chunk}
+                      {i < arr.length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
               </h3>
               <p className="text-base md:text-lg text-[#86868b] font-medium leading-[1.8] mb-5">
                 {t("landing.feature2Subtitle")}
               </p>
               <p className="text-base md:text-lg text-[#86868b] font-medium leading-[1.8]">
-                <span
-                  dangerouslySetInnerHTML={{
-                    __html: t("landing.feature2Desc"),
-                  }}
-                />
+                {String(t("landing.feature2Desc") || "")
+                  .split(/<br\s*\/?>/i)
+                  .map((chunk, i, arr) => (
+                    <React.Fragment key={i}>
+                      {chunk}
+                      {i < arr.length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
               </p>
             </FadeIn>
           </div>
@@ -700,7 +714,7 @@ export default function LandingPage() {
                   >
                     <img
                       src={src}
-                      alt="Card"
+                      alt={language === "en" ? `Thenith luxury smart NFC card mockup design ${i + 1}` : `تصميم بطاقة Thenith الذكية الفاخرة بتقنية NFC رقم ${i + 1}`}
                       loading="lazy"
                       className="w-full h-full object-cover"
                     />
@@ -730,7 +744,7 @@ export default function LandingPage() {
                   >
                     <img
                       src={src}
-                      alt="NFC Card"
+                      alt={language === "en" ? `Thenith luxury smart NFC card mockup design ${i + 1}` : `تصميم بطاقة Thenith الذكية الفاخرة بتقنية NFC رقم ${i + 1}`}
                       loading="lazy"
                       className="w-full h-full object-cover"
                     />
@@ -968,6 +982,20 @@ export default function LandingPage() {
                   {t("landing.importantLinks")}
                 </h5>
                 <div className="flex flex-col gap-3 text-base font-medium text-[#86868b]">
+                  <Link
+                    to="/products"
+                    className="flex items-center justify-start gap-2 text-start hover:text-[#1d1d1f] rtl:hover:-translate-x-1 ltr:hover:translate-x-1 transition-all"
+                  >
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1d1d1f]/60" />
+                    {t("navbar.products") || (language === "en" ? "Smart Cards & Products" : "البطاقات والمنتجات")}
+                  </Link>
+                  <Link
+                    to="/pricing"
+                    className="flex items-center justify-start gap-2 text-start hover:text-[#1d1d1f] rtl:hover:-translate-x-1 ltr:hover:translate-x-1 transition-all"
+                  >
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1d1d1f]/60" />
+                    {t("navbar.pricing") || (language === "en" ? "Plans & Pricing" : "الباقات والأسعار")}
+                  </Link>
                   <button
                     onClick={() =>
                       window.dispatchEvent(new Event("open-support-widget"))

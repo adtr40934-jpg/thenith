@@ -19,17 +19,8 @@ setIO(ioInstance);
 try {
   await connectDatabase();
 
-  server.listen(env.PORT, () => {
-    console.log(`🔥 Admin Server is running flawlessly on port ${env.PORT}`);
-    console.log(
-      `Admin Health:    http://localhost:${env.PORT}/api/admin/health`,
-    );
-    console.log(
-      `Admin Login:     http://localhost:${env.PORT}/api/admin/login`,
-    );
-    console.log(
-      "Status:          Running completely standalone on this machine",
-    );
+  server.listen(env.PORT, "0.0.0.0", () => {
+    console.log(`Admin Server running on port ${env.PORT} (0.0.0.0)`);
   });
 
   const shutdown = async (signal) => {

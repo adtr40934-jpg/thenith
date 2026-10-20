@@ -15,8 +15,7 @@ import {
 // ─── In-memory token mirror (optional fast-read) ────────────────────────────
 let _memToken = null;
 
-export const getAccessToken = () =>
-  _memToken || localStorage.getItem("access_token") || null;
+export const getAccessToken = () => _memToken || null;
 
 export function saveAccessToken(token) {
   _memToken = token || null;

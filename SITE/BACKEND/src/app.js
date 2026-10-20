@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
@@ -38,40 +39,10 @@ export const app = express();
 app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors(corsOptions));
+app.use(compression({ threshold: 1024 }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
-
-// ── Request Logger (dev only) ─────────────────────────────────────────────────
-app.use((req, _res, next) => {
-  // Skip noisy health checks and static/public reads
-  const skip = ["/api/health", "/favicon"];
-  if (skip.some(p => req.path.startsWith(p))) return next();
-
-  const ts = new Date().toISOString().replace("T", " ").slice(0, 19);
-  const method = req.method.padEnd(7);
-  const path   = req.originalUrl || req.path;
-
-  const parts = [`\n\x1b[36m[${ts}]\x1b[0m \x1b[1m${method}\x1b[0m ${path}`];
-
-  if (Object.keys(req.query).length)
-    parts.push(`  \x1b[33mQuery :\x1b[0m ${JSON.stringify(req.query)}`);
-
-  if (req.body && Object.keys(req.body).length) {
-    // Mask sensitive fields before logging
-    const safe = { ...req.body };
-    ["password","token","credential","secret","accessToken","refreshToken"].forEach(k => {
-      if (safe[k]) safe[k] = "[MASKED]";
-    });
-    parts.push(`  \x1b[33mBody   :\x1b[0m ${JSON.stringify(safe)}`);
-  }
-
-  // If auth middleware has already run (e.g. nested routes), show user id
-  if (req.user?._id)
-    parts.push(`  \x1b[32mUser   :\x1b[0m ${req.user._id} (${req.user.email || "?"}`);
-
-  next();
-});
 
 // ── 1. Security Audit Logger ──
 // MUST be placed here before any blockers so it can intercept their responses and log them!

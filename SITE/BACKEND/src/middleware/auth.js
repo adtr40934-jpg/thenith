@@ -10,10 +10,13 @@ const { HttpError } = _httpError;
 
 function getBearerToken(request) {
   const header = request.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    return null;
+  if (header?.startsWith("Bearer ")) {
+    return header.slice(7).trim();
   }
-  return header.slice(7).trim();
+  if (request.query?.token) {
+    return request.query.token;
+  }
+  return null;
 }
 
 async function requireAuth(request, _response, next) {

@@ -5,7 +5,7 @@ const { startSubscriptionExpiryJob  } = _expireSubscriptionsjob9243;
 import _cleanupSessionsjob6531 from "./cleanupSessions.job.js";
 const { startSessionCleanupJob  } = _cleanupSessionsjob6531;
 
-async function startJobs() {
+function startJobs() {
   const stopCustomerServiceCleanup = startCustomerServiceCleanupJob();
   const stopSubscriptionExpiry = startSubscriptionExpiryJob();
   const stopSessionCleanup = startSessionCleanupJob();

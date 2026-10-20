@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import { getBackendUrl } from "../api/client.js";
 
 export default function useDashboardNotifications(pathname) {
   const [unreadTabCount, setUnreadTabCount] = useState(0);
@@ -8,7 +9,7 @@ export default function useDashboardNotifications(pathname) {
 
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token");
-    const socket = io(import.meta.env.VITE_API_BASE_URL.replace("/api", ""), {
+    const socket = io(getBackendUrl(), {
       auth: { adminToken },
     });
 
@@ -32,7 +33,7 @@ export default function useDashboardNotifications(pathname) {
           audioEl.volume = 0.8;
           audioEl
             .play()
-            .catch((e) => );
+            .catch((e) => {});
 
           if (
             "Notification" in window &&

@@ -16,6 +16,7 @@ function buildOwner(user, subscription, activeCard) {
     name: user.name,
     fullName: user.name,
     email: user.email,
+    gender: user.gender || "male",
     secondaryEmails: user.secondaryEmails || [],
     phone: user.phone,
     address: user.address,
@@ -42,9 +43,7 @@ async function buildCards(cards, user, subscription) {
   return Promise.all(
     cards.map(async (card) => {
       const rawAnalytics = await getCardAnalytics(card._id);
-      const analytics = hasAdvancedAnalytics
-        ? rawAnalytics
-        : { visits: rawAnalytics.visits, linkClicks: {}, countries: {} };
+      const analytics = rawAnalytics;
       const cardObj = {
         ...card.toObject(),
         id: card._id.toString(),

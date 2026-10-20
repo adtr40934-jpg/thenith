@@ -382,19 +382,19 @@ export default function ProfilePage({
   };
 
   return (
-    <section className="space-y-4 p-0 sm:p-3 md:p-0">
-      <div className="flex flex-col justify-between gap-3 rounded-[20px] bg-white p-3 shadow-sm dark:bg-slate-950/45 sm:flex-row sm:items-center sm:rounded-[24px] sm:p-4 md:bg-transparent md:p-0 md:shadow-none">
+    <section className="space-y-4">
+      <div className="flex flex-col justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950/45 sm:flex-row sm:items-center sm:rounded-2xl sm:p-5 md:bg-transparent md:p-0 md:shadow-none">
         <div>
-          <h1 className="text-2xl font-black">{t("profile")}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t("profileIntro")}</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">{t("profile")}</h1>
+          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">{t("profileIntro")}</p>
         </div>
       </div>
 
       {/* Username / Card Link */}
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5 dark:border-indigo-900/30 dark:bg-indigo-950/20">
+      <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 sm:p-5 dark:border-indigo-900/30 dark:bg-indigo-950/20">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-white">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-500/20">
+          <h2 className="flex items-center gap-2 text-xs sm:text-sm font-black text-slate-800 dark:text-white">
+            <span className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-500/20">
               <AtSign className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             </span>
             {t("customLinkLabel")}
@@ -407,7 +407,7 @@ export default function ProfilePage({
         </div>
         <div className="space-y-3">
           <div
-            className={`relative flex items-center overflow-hidden rounded-xl border bg-white transition-colors dark:bg-slate-950/40 ${usernameStatus === "taken" || usernameStatus === "invalid" ? "border-rose-500 ring-4 ring-rose-500/10 dark:border-rose-400" : "border-slate-200 dark:border-slate-800"}`}
+            className={`relative flex items-center overflow-hidden rounded-xl border bg-white min-h-[44px] transition-colors dark:bg-slate-900/60 shadow-2xs ${usernameStatus === "taken" || usernameStatus === "invalid" ? "border-rose-500 ring-2 ring-rose-500/20 dark:border-rose-400" : "border-slate-200 dark:border-slate-800 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20"}`}
           >
             <input
               type="text"
@@ -430,7 +430,7 @@ export default function ProfilePage({
                 })
               }
               placeholder="username"
-              className={`flex-1 bg-transparent px-3 py-2.5 text-sm font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-white ${usernameStatus === "taken" || usernameStatus === "invalid" ? "text-rose-600 dark:text-rose-400" : ""}`}
+              className={`flex-1 bg-transparent px-3.5 py-2.5 text-base sm:text-sm font-bold text-slate-800 outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-white ${usernameStatus === "taken" || usernameStatus === "invalid" ? "text-rose-600 dark:text-rose-400" : ""}`}
             />
           </div>
           {!canUseCustomLink && (
@@ -486,9 +486,9 @@ export default function ProfilePage({
       </div>
 
       {/* Account Info & Subscriptions Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
         {/* Subscription History */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-900 dark:bg-slate-950/45 flex flex-col">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm dark:border-slate-900 dark:bg-slate-950/45 flex flex-col">
           <h2 className="mb-5 flex items-center justify-between text-sm font-black text-slate-800 dark:text-white">
             <div className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
@@ -596,6 +596,22 @@ export default function ProfilePage({
                           {statusBadge.label}
                         </span>
 
+                        {isPending && (
+                          <button
+                            onClick={() => {
+                              const params = new URLSearchParams({
+                                type: sub.orderType || "subscription",
+                                id: sub._id,
+                                intentKey: sub.intentKey || sub._id,
+                              });
+                              window.location.href = `/payment?${params.toString()}`;
+                            }}
+                            className="rounded-lg bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 text-[11px] font-bold transition-colors shadow-sm"
+                          >
+                            {isArabic ? "استكمال الدفع" : "Pay Now"}
+                          </button>
+                        )}
+
                         <button
                           onClick={() => setSelectedSubDetails(sub)}
                           className="rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-600 transition-colors hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50"
@@ -623,7 +639,7 @@ export default function ProfilePage({
         </div>
 
         {/* Personal Details */}
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm dark:border-slate-900 dark:bg-slate-950/45">
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm dark:border-slate-900 dark:bg-slate-950/45">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-black text-slate-800 dark:text-white">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
               <User className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
@@ -1162,6 +1178,60 @@ export default function ProfilePage({
                   </div>
                 )}
               </div>
+
+              {selectedSubDetails.fawryCode && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/60 dark:bg-amber-950/30">
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                    {isArabic
+                      ? "كود الدفع عبر فوري (Fawry Pay):"
+                      : "Fawry Reference Code:"}
+                  </p>
+                  <p className="text-2xl font-black text-amber-900 dark:text-amber-100 tracking-wider font-mono mt-1 select-all">
+                    {selectedSubDetails.fawryCode}
+                  </p>
+                  {selectedSubDetails.fawryCodeExpiry && (
+                    <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400 mt-1">
+                      {isArabic ? "صالح حتى:" : "Expires at:"}{" "}
+                      {new Date(
+                        selectedSubDetails.fawryCodeExpiry,
+                      ).toLocaleString(isArabic ? "ar-EG-u-nu-latn" : "en-US")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {selectedSubDetails.mobileWalletNumber && (
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800/60 dark:bg-indigo-950/30">
+                  <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                    {isArabic
+                      ? "رقم المحفظة الإلكترونية:"
+                      : "Mobile Wallet Number:"}
+                  </p>
+                  <p className="text-lg font-black text-indigo-900 dark:text-indigo-100 font-mono mt-1">
+                    {selectedSubDetails.mobileWalletNumber}
+                  </p>
+                </div>
+              )}
+
+              {selectedSubDetails.status === "pending" && (
+                <div className="pt-2 flex gap-3">
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams({
+                        type: selectedSubDetails.orderType || "subscription",
+                        id: selectedSubDetails._id,
+                        intentKey:
+                          selectedSubDetails.intentKey ||
+                          selectedSubDetails._id,
+                      });
+                      window.location.href = `/payment?${params.toString()}`;
+                    }}
+                    className="flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    {isArabic ? "استكمال الدفع الآن" : "Complete Payment Now"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

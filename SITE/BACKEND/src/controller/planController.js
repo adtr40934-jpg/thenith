@@ -4,23 +4,42 @@ import Plan from "../models/Plan.js";
 
 import Coupon from "../models/Coupon.js";
 
+// In-memory cache for public plans & active coupons
+let cachedPlansData = null;
+let cachedPlansTime = 0;
+const PLANS_CACHE_TTL_MS = 60 * 1000;
+
+export function invalidatePlansCache() {
+  cachedPlansData = null;
+  cachedPlansTime = 0;
+}
+
 // ── GET /api/plans ────────────────────────────────────────────────────────────
 const getPlans = asyncHandler(async (_request, response) => {
-  const plans = await Plan.find({ isActive: true }).sort({ key: 1 }).lean();
-  
-  // Find the best active coupon for subscriptions (or all)
-  const now = new Date();
-  const activeCoupon = await Coupon.findOne({
-    isActive: true,
-    appliesTo: { $in: ["subscriptions", "all"] },
-    $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
-    $expr: {
-      $or: [
-        { $eq: ["$maxUses", null] },
-        { $lt: ["$usedCount", "$maxUses"] }
-      ]
-    }
-  }).sort({ discountValue: -1 }).lean();
+  response.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+
+  const now = Date.now();
+  if (cachedPlansData && now - cachedPlansTime < PLANS_CACHE_TTL_MS) {
+    return response.json(cachedPlansData);
+  }
+
+  const nowDate = new Date();
+  const [plans, activeCoupon] = await Promise.all([
+    Plan.find({ isActive: true }).sort({ key: 1 }).lean(),
+    Coupon.findOne({
+      isActive: true,
+      appliesTo: { $in: ["subscriptions", "all"] },
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: nowDate } }],
+      $expr: {
+        $or: [
+          { $eq: ["$maxUses", null] },
+          { $lt: ["$usedCount", "$maxUses"] },
+        ],
+      },
+    })
+      .sort({ discountValue: -1 })
+      .lean(),
+  ]);
 
   // Apply active coupon logic to calculate final prices for each plan
   const plansWithCalculatedPrices = plans.map(plan => {
@@ -84,8 +103,12 @@ const getPlans = asyncHandler(async (_request, response) => {
     };
   });
 
-  response.json({ plans: plansWithCalculatedPrices, activeCoupon });
+  const result = { plans: plansWithCalculatedPrices, activeCoupon };
+  cachedPlansData = result;
+  cachedPlansTime = Date.now();
+
+  response.json(result);
 });
 
+export default { getPlans, invalidatePlansCache };
 
-export default { getPlans };

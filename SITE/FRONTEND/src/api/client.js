@@ -17,28 +17,30 @@ import { getLocalizedErrorMessage } from "../utils/errorHandling.js";
 // ─── Token Storage ──────────────────────────────────────────────────────────
 
 const TOKEN_KEY = "access_token";
+let _inMemoryToken = "";
 
 export const readAuthToken = () => {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || "";
-  } catch {
-    return "";
-  }
+  return _inMemoryToken || "";
 };
 
 export const saveAuthToken = (token) => {
+  _inMemoryToken = token || "";
   try {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
+    // Purge any legacy token from localStorage
+    localStorage.removeItem(TOKEN_KEY);
   } catch {
     // Silently ignore storage errors in restricted environments.
   }
 };
 
-export const clearAuthToken = () => saveAuthToken("");
+export const clearAuthToken = () => {
+  _inMemoryToken = "";
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Silently ignore storage errors.
+  }
+};
 
 // ─── Shared defaults ────────────────────────────────────────────────────────
 

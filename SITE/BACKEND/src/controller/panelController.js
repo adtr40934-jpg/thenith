@@ -17,6 +17,9 @@ const {
 } = _entitlements6954;
 import _dashboardNotifications1234 from "../util/dashboardNotifications.js";
 const { notifyUser } = _dashboardNotifications1234;
+import { generateGenderAvatar } from "../util/avatarGenerator.js";
+import _publicProfileController from "./publicProfile/publicProfileController.js";
+const { invalidateProfileCacheForUser } = _publicProfileController;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -118,14 +121,22 @@ const createCard = asyncHandler(async (request, response) => {
           "Your current plan has reached its card limit",
         );
       }
+      const cardName = request.body?.name?.trim() || `Card ${count + 1}`;
+      const userName = request.user.name || cardName;
+      const seed = `${userName}-${count + 1}-${Date.now().toString().slice(-4)}`;
+      const autoAvatar = generateGenderAvatar(seed, seed);
+
       [card] = await Card.create(
         [
           {
             userId: request.user._id,
-            name: request.body?.name?.trim() || `Card ${count + 1}`,
+            name: cardName,
             isActive: count === 0,
             theme: "default",
-            personal: {},
+            personal: {
+              fullName: request.user.name || "",
+              avatar: autoAvatar,
+            },
             links: [],
             contacts: [],
           },
@@ -141,6 +152,7 @@ const createCard = asyncHandler(async (request, response) => {
     session.endSession();
   }
   await card.populate("userId", "username publicId");
+  invalidateProfileCacheForUser(request.user._id, request.user.publicId, request.user.username);
   response.status(201).json({
     card: buildDashboardCardDTO(
       publicCard(card),
@@ -265,6 +277,8 @@ const updateCard = asyncHandler(async (request, response) => {
   ).populate("userId", "username publicId");
   if (!updatedCard) throw new HttpError(404, "Card not found");
 
+  invalidateProfileCacheForUser(request.user._id, request.user.publicId, request.user.username);
+
   response.json({
     card: buildDashboardCardDTO(
       publicCard(updatedCard),
@@ -299,6 +313,7 @@ const reorderLinks = asyncHandler(async (request, response) => {
     { new: true, runValidators: true },
   ).populate("userId", "username publicId");
   if (!updatedCard) throw new HttpError(404, "Card not found");
+  invalidateProfileCacheForUser(request.user._id, request.user.publicId, request.user.username);
   response.json({
     card: buildDashboardCardDTO(
       publicCard(updatedCard),
@@ -332,6 +347,7 @@ const deleteCard = asyncHandler(async (request, response) => {
       await request.user.save();
     }
   }
+  invalidateProfileCacheForUser(request.user._id, request.user.publicId, request.user.username);
   response.status(204).send();
 });
 
@@ -413,10 +429,7 @@ export const recordNfcLinked = asyncHandler(async (request, response) => {
   if (!subscription?.entitlements?.plan) throw new HttpError(403, "NO_ACTIVE_SUBSCRIPTION");
 
   // Find active card and mark it as NFC-linked
-  const activeCardId = user.activeCardId;
-  const card = activeCardId
-    ? await Card.findOne({ _id: activeCardId, userId: user._id })
-    : await Card.findOne({ userId: user._id }).sort({ createdAt: 1 });
+  const card = await Card.findActiveForUser(user._id, user.activeCardId);
 
   if (!card) throw new HttpError(404, "NO_CARD_FOUND");
 

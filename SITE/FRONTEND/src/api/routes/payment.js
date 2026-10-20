@@ -51,11 +51,12 @@ export const paymentRoutes = {
    * @param {string} type - "order" or "subscription"
    * @param {string} id - Order ID or Plan ID
    */
-  getInvoiceDetails: (type, id, billingPeriod, couponCode) => {
-    let url = `/payment/invoice/${type}/${id}?`;
+  getInvoiceDetails: (type, id, billingPeriod, couponCode, intentKey) => {
+    let url = `/payment/invoice/${type}/${encodeURIComponent(id)}?`;
     if (billingPeriod) url += `billingPeriod=${billingPeriod}&`;
     if (couponCode) url += `couponCode=${encodeURIComponent(couponCode)}&`;
-    return request(url.replace(/&$/, ''));
+    if (intentKey) url += `intentKey=${encodeURIComponent(intentKey)}&`;
+    return request(url.replace(/[?&]$/, ''));
   },
 };
 

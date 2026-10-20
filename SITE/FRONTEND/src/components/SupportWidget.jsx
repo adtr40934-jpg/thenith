@@ -411,8 +411,8 @@ export default function SupportWidget({ embedded = false, isVisible = true }) {
                       >
                         <div
                           className={`max-w-[85%] p-3.5 text-sm flex flex-col ${isGuest
-                              ? "bg-black text-white rounded-[20px] rounded-se-[4px] shadow-md"
-                              : "bg-white/95 dark:bg-slate-800/95 text-slate-800 dark:text-slate-100 rounded-[20px] rounded-ss-[4px] border border-slate-200/70 dark:border-slate-600/40 shadow-sm"
+                            ? "bg-black text-white rounded-[20px] rounded-se-[4px] shadow-md"
+                            : "bg-white/95 dark:bg-slate-800/95 text-slate-800 dark:text-slate-100 rounded-[20px] rounded-ss-[4px] border border-slate-200/70 dark:border-slate-600/40 shadow-sm"
                             }`}
                         >
                           <p
@@ -501,11 +501,11 @@ export default function SupportWidget({ embedded = false, isVisible = true }) {
             )}
           </button>
         )}
-      <audio id="user-notify-main" src="/sounds/main-notification.mp3" preload="auto" />
+      <audio id="user-notify-main" src="/sounds/main-notification.mp3" preload="none" />
       <audio
         id="user-notify-inchat"
         src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"
-        preload="auto"
+        preload="none"
       />
     </div>
   );

@@ -29,6 +29,7 @@ const personalSchema = new mongoose.Schema(
     bio: { type: String, default: "", maxlength: 2000 },
     avatar: { type: String, default: "" },
     coverImage: { type: String, default: "" },
+    gender: { type: String, default: "" },
   },
   { _id: false, strict: true },
 );
@@ -112,7 +113,19 @@ cardSchema.pre("validate", function setDefaultPrimaryContacts(next) {
   next();
 });
 
+cardSchema.statics.findActiveForUser = async function (userId, activeCardId = null) {
+  if (activeCardId) {
+    const card = await this.findOne({ _id: activeCardId, userId });
+    if (card) return card;
+  }
+  return (
+    (await this.findOne({ userId, isActive: true })) ||
+    (await this.findOne({ userId }).sort({ createdAt: 1 }))
+  );
+};
+
 cardSchema.index({ userId: 1, createdAt: 1 });
+cardSchema.index({ userId: 1, isActive: 1 });
 const Card = mongoose.model("Card", cardSchema);
 
 export { ensurePrimaryContacts };

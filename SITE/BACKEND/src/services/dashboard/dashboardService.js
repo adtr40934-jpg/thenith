@@ -25,13 +25,22 @@ async function getCardAnalytics(cardId) {
     cardId,
     eventType: "visit",
     createdAt: { $gte: yearStart },
-  });
+  })
+    .select("createdAt")
+    .lean();
 
   const week = Array(7).fill(0);
   const month = Array(30).fill(0);
   const year = Array(12).fill(0);
 
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  let todayVisits = 0;
   visits.forEach((v) => {
+    if (v.createdAt >= todayStart) {
+      todayVisits++;
+    }
     if (v.createdAt >= weekStart) {
       const diff = Math.floor(
         (v.createdAt - weekStart) / (1000 * 60 * 60 * 24),
@@ -50,6 +59,26 @@ async function getCardAnalytics(cardId) {
     if (diffMonth >= 0 && diffMonth < 12) year[diffMonth]++;
   });
 
+  const todayClicksCount = await AnalyticEvent.countDocuments({
+    cardId,
+    eventType: "click",
+    createdAt: { $gte: todayStart },
+  });
+
+  const todayLinkClicksAgg = await AnalyticEvent.aggregate([
+    { $match: { cardId, eventType: "click", createdAt: { $gte: todayStart } } },
+    {
+      $group: {
+        _id: "$linkUrl",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+  const todayLinkClicksMap = {};
+  todayLinkClicksAgg.forEach((c) => {
+    todayLinkClicksMap[c._id] = c.count;
+  });
+
   const clicks = await AnalyticEvent.aggregate([
     { $match: { cardId, eventType: "click" } },
     {
@@ -63,7 +92,13 @@ async function getCardAnalytics(cardId) {
   clicks.forEach((c) => {
     const url = c._id.linkUrl;
     const country = c._id.country;
-    if (!linkClicks[url]) linkClicks[url] = { total: 0, countries: {} };
+    if (!linkClicks[url]) {
+      linkClicks[url] = {
+        total: 0,
+        today: todayLinkClicksMap[url] || 0,
+        countries: {},
+      };
+    }
     linkClicks[url].total += c.count;
     linkClicks[url].countries[country] = c.count;
   });
@@ -77,7 +112,12 @@ async function getCardAnalytics(cardId) {
   const countries = {};
   countriesAgg.forEach((c) => (countries[c._id] = c.count));
 
-  return { visits: { week, month, year }, linkClicks, countries };
+  return {
+    visits: { today: todayVisits, week, month, year },
+    clicks: { today: todayClicksCount },
+    linkClicks,
+    countries,
+  };
 }
 
 

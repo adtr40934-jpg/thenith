@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Briefcase,
   CalendarDays,
@@ -32,17 +32,22 @@ export default function MessagesPage({
     ? getInboxLabel(selectedCard, t)
     : t("messages");
 
+  const markedIdsRef = useRef(new Set());
+
   // Reset filter when opening a different card
   useEffect(() => {
     setFilter("all");
+    markedIdsRef.current.clear();
   }, [selectedCard?.id]);
 
   // Automatically mark all unread messages as read when viewing the inbox
   useEffect(() => {
     if (selectedCard && inboxItems.length > 0) {
-      const unreadItems = inboxItems.filter((item) => !item.read);
+      const unreadItems = inboxItems.filter(
+        (item) => !item.read && !markedIdsRef.current.has(item.id),
+      );
       if (unreadItems.length > 0) {
-        // We use a small timeout so the user visually sees them as unread for a split second, then they fade to read
+        unreadItems.forEach((item) => markedIdsRef.current.add(item.id));
         const timer = setTimeout(() => {
           unreadItems.forEach((item) => {
             onMarkRead(selectedCard.id, item.id);
@@ -100,11 +105,11 @@ export default function MessagesPage({
   };
 
   return (
-    <section className="space-y-4 p-0 sm:p-3 md:p-0">
-      <div className="flex flex-col justify-between gap-3 rounded-[20px] bg-white p-3 shadow-sm dark:bg-slate-950/45 sm:flex-row sm:items-center sm:rounded-[24px] sm:p-4 md:bg-transparent md:p-0 md:shadow-none">
+    <section className="space-y-4">
+      <div className="flex flex-col justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950/45 sm:flex-row sm:items-center sm:rounded-2xl sm:p-5 md:bg-transparent md:p-0 md:shadow-none">
         <div>
-          <h1 className="text-2xl font-black">{inboxLabel}</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">{inboxLabel}</h1>
+          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             {selectedCard
               ? `${inboxLabel} - ${selectedCard.name}`
               : t("messagesIntro")}
@@ -113,7 +118,7 @@ export default function MessagesPage({
         {selectedCard && (
           <button
             onClick={onBack}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900"
+            className="min-h-10 w-full sm:w-auto rounded-xl border border-slate-200 px-4 py-2 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 active:scale-95 transition-all"
           >
             {t("backToMessages")}
           </button>
@@ -121,7 +126,7 @@ export default function MessagesPage({
       </div>
 
       {!selectedCard ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3.5 sm:gap-4 md:grid-cols-2">
           {cards.map((card) => {
             const cardInboxItems = getInboxItems(card);
             const cardInboxLabel = getInboxLabel(card, t);
@@ -131,7 +136,7 @@ export default function MessagesPage({
               <button
                 key={card.id}
                 onClick={() => onOpenCard(card.id)}
-                className="rounded-[24px] border border-slate-100 bg-white p-5 text-end shadow-sm transition-all active:scale-[0.99] hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md dark:border-slate-900 dark:bg-slate-950/45 dark:hover:border-indigo-800 ltr:text-left"
+                className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 text-end shadow-sm transition-all active:scale-[0.99] hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md dark:border-slate-900 dark:bg-slate-950/45 dark:hover:border-indigo-800 ltr:text-left"
               >
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>

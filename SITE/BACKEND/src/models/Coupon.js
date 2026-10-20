@@ -54,6 +54,32 @@ const couponSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+couponSchema.methods.calculateDiscount = function (
+  baseAmount,
+  target = "all",
+  billingPeriod = null,
+) {
+  if (!this.isActive) return 0;
+  if (this.expiresAt && new Date() > new Date(this.expiresAt)) return 0;
+  if (this.maxUses !== null && this.usedCount >= this.maxUses) return 0;
+  if (this.appliesTo !== "all" && this.appliesTo !== target) return 0;
+
+  let val = this.discountValue;
+  if (billingPeriod === "monthly" && this.monthlyDiscountValue != null) {
+    val = this.monthlyDiscountValue;
+  } else if (billingPeriod === "yearly" && this.yearlyDiscountValue != null) {
+    val = this.yearlyDiscountValue;
+  }
+
+  if (this.discountType === "percentage") {
+    return Math.round((baseAmount * val) / 100);
+  }
+  return Math.min(val, baseAmount);
+};
+
+couponSchema.index({ isActive: 1, appliesTo: 1, expiresAt: 1 });
+
 const Coupon = mongoose.model("Coupon", couponSchema);
 
 export default Coupon;
+

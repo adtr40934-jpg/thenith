@@ -41,6 +41,7 @@ const userSchema = new mongoose.Schema(
     },
     avatar: { type: String, default: "" },
     coverImage: { type: String, default: "" },
+    gender: { type: String, default: "" },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     isActive: { type: Boolean, default: true, index: true },
     isEmailVerified: { type: Boolean, default: false },
@@ -159,6 +160,19 @@ userSchema.pre(
     next();
   },
 );
+
+export function getEmailRegex(email) {
+  const normalizedEmail = String(email || "")
+    .trim()
+    .toLowerCase();
+  const escapedEmail = normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escapedEmail}$`, "i");
+}
+
+export function emailLookup(email) {
+  const emailRegex = getEmailRegex(email);
+  return { $or: [{ email: emailRegex }, { secondaryEmails: emailRegex }] };
+}
 
 const User = mongoose.model("User", userSchema);
 

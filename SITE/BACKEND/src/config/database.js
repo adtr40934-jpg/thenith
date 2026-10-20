@@ -12,7 +12,14 @@ async function connectDatabase() {
     );
   }
   mongoose.set("strictQuery", true);
-  await mongoose.connect(env.MONGODB_URI);
+  await mongoose.connect(env.MONGODB_URI, {
+    maxPoolSize: 50,
+    minPoolSize: 10,
+    maxIdleTimeMS: 60000,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 10000,
+  });
   console.log(`Successfully connected to MongoDB Database`);
 }
 

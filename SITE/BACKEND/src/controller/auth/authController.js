@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
-import User from "../../models/User.js";
+import User, { emailLookup, getEmailRegex } from "../../models/User.js";
 import Plan from "../../models/Plan.js";
 import Subscription from "../../models/Subscription.js";
 import Order from "../../models/Order.js";
@@ -14,6 +14,7 @@ import _asyncHandler from "../../util/asyncHandler.js";
 const { asyncHandler } = _asyncHandler;
 import _httpError from "../../util/httpError.js";
 const { HttpError } = _httpError;
+import { generateGenderAvatar } from "../../util/avatarGenerator.js";
 import _tokens from "../../util/tokens.js";
 // ✅ All token helpers imported once at the top — no dynamic imports needed
 const { verifyRefreshToken, hashToken, createAccessToken } = _tokens;
@@ -42,18 +43,6 @@ const { canAccess } = _entitlements;
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
-function getEmailRegex(email) {
-  const normalizedEmail = String(email || "")
-    .trim()
-    .toLowerCase();
-  const escapedEmail = normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escapedEmail}$`, "i");
-}
-
-function emailLookup(email) {
-  const emailRegex = getEmailRegex(email);
-  return { $or: [{ email: emailRegex }, { secondaryEmails: emailRegex }] };
-}
 
 async function findUserByEmail(email, includePassword = false) {
   const emailRegex = getEmailRegex(email);
@@ -121,6 +110,7 @@ const requestCode = asyncHandler(async (request, response) => {
     { upsert: true, new: true },
   );
   sendOtpEmail({ email: normalizedEmail, code }).catch((err) => {
+    console.warn("[mail] Error sending OTP email:", err?.message || err);
   });
 
   response.json({
@@ -183,9 +173,14 @@ const completeRegistration = asyncHandler(async (request, response) => {
     throw new HttpError(400, "Registration verification has expired");
   }
   if (!name?.trim()) throw new HttpError(400, "Name is required");
+  if (!jobTitle?.trim()) throw new HttpError(400, "Job title is required");
+  if (!company?.trim()) throw new HttpError(400, "Company is required");
+  if (!bio?.trim()) throw new HttpError(400, "Bio is required");
   if (await User.exists(emailLookup(payload.email)))
     throw new HttpError(409, "Email is already registered");
-  const userAvatar = `${env.AVATAR_API_URL}${encodeURIComponent(jobTitle?.trim() || name.trim())}`;
+
+  const userAvatar = generateGenderAvatar(name.trim(), name.trim());
+
   const user = await User.create({
     email: payload.email,
     name: name.trim(),
@@ -239,7 +234,9 @@ const register = asyncHandler(async (request, response) => {
   const normalizedEmail = email.trim().toLowerCase();
   if (await User.exists(emailLookup(normalizedEmail)))
     throw new HttpError(409, "Email is already registered");
-  const userAvatar = `${env.AVATAR_API_URL}${encodeURIComponent(name.trim())}`;
+
+  const userAvatar = generateGenderAvatar(name.trim(), name.trim());
+
   const user = await User.create({
     email: normalizedEmail,
     name: name.trim(),
@@ -498,6 +495,18 @@ const updateMe = asyncHandler(async (request, response) => {
   for (const key of allowed) {
     if (request.body?.[key] !== undefined)
       request.user[key] = request.body[key];
+  }
+
+  // Handle avatar regenerate if requested
+  if (request.body?.regenerateAvatar) {
+    const newAvatar = generateGenderAvatar(request.user.name, request.user.name);
+    request.user.avatar = newAvatar;
+    if (request.user.activeCardId) {
+      await Card.updateOne(
+        { _id: request.user.activeCardId },
+        { $set: { "personal.avatar": newAvatar } }
+      );
+    }
   }
 
   if (request.user.email && request.user.email !== previousEmail) {

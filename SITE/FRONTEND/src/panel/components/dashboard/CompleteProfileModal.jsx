@@ -99,7 +99,7 @@ export default function CompleteProfileModal({
           {/* Name Field (if missing) */}
           {isNameMissing && (
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+              <label className="block text-xs sm:text-[13px] font-bold text-slate-300 mb-1.5">
                 {t("fullNameLabel")}
               </label>
               <div className="relative">
@@ -111,7 +111,7 @@ export default function CompleteProfileModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={language === "ar" ? "أدخل اسمك" : "Enter your name"}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pe-10 ps-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full min-h-[44px] bg-slate-950 border border-slate-800 rounded-xl pe-10 ps-4 py-2.5 sm:py-3 text-base sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
             </div>
@@ -119,7 +119,7 @@ export default function CompleteProfileModal({
 
           {/* Phone Field */}
           <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1.5">
+            <label className="block text-xs sm:text-[13px] font-bold text-slate-300 mb-1.5">
               {language === "ar" ? "رقم الهاتف" : "Phone Number"} <span className="text-rose-400">*</span>
             </label>
             <div className="relative">
@@ -132,7 +132,7 @@ export default function CompleteProfileModal({
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="01012345678"
                 autoFocus
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pe-10 ps-4 py-3 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors text-end"
+                className="w-full min-h-[44px] bg-slate-950 border border-slate-800 rounded-xl pe-10 ps-4 py-2.5 sm:py-3 text-base sm:text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-end"
               />
             </div>
           </div>
@@ -141,7 +141,7 @@ export default function CompleteProfileModal({
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 group disabled:opacity-50"
+              className="flex-1 min-h-[44px] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 sm:py-3 px-5 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 group disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -156,7 +156,7 @@ export default function CompleteProfileModal({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl text-sm transition-colors"
+              className="min-h-[44px] bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 sm:py-3 px-4 rounded-xl text-sm transition-colors"
             >
               {language === "ar" ? "إلغاء" : "Cancel"}
             </button>

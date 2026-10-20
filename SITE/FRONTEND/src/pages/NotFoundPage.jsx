@@ -1,6 +1,8 @@
+import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft, Home, ShieldAlert } from "lucide-react";
 import { useGlobalLanguage } from "../context/GlobalLanguageContext.jsx";
+import { getNotFoundSeoData, applyPageSeo } from "../utils/seo.js";
 
 const notFoundConfigs = {
   profileNotFound: {
@@ -16,9 +18,13 @@ const notFoundConfigs = {
 };
 
 export default function NotFoundPage({ code = "routeNotFound" }) {
-  const { t } = useGlobalLanguage();
+  const { t, language } = useGlobalLanguage();
   const location = useLocation();
   const config = notFoundConfigs[code] || notFoundConfigs.routeNotFound;
+
+  useEffect(() => {
+    applyPageSeo(getNotFoundSeoData(language, code === "profileNotFound" ? "profile" : "page"));
+  }, [language, code]);
   return (
     <div className="min-h-[100dvh] w-full flex flex-col bg-[#FBFBFD] text-[#1d1d1f] antialiased selection:bg-[#1d1d1f] selection:text-white">
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 pt-28 pb-16">

@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Users,
   CreditCard,
+  QrCode,
   Bell,
   ShieldAlert,
   Store,
@@ -16,6 +17,7 @@ import {
 export const DASHBOARD_NAV_ITEMS = [
   { id: "overview", path: "/", icon: LayoutDashboard, label: "نظرة عامة" },
   { id: "users", path: "/users", icon: Users, label: "إدارة المستخدمين" },
+  { id: "cards", path: "/cards", icon: QrCode, label: "إدارة الكروت" },
   { id: "subscriptions", path: "/subscriptions", icon: CreditCard, label: "الاشتراكات والباقات" },
   { id: "subscriptions-stats", path: "/subscriptions-stats", icon: PieChart, label: "إحصائيات الاشتراكات" },
   { id: "store", path: "/store", icon: Store, label: "إدارة المتجر" },

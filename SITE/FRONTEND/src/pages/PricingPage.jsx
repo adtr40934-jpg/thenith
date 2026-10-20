@@ -5,6 +5,7 @@ import { Check, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { restoreSession } from "../panel/services/authApi.js";
 import api from "../api/index.js";
+import { applyPageSeo, PRODUCTION_DOMAIN } from "../utils/seo.js";
 
 // Human-readable names for feature keys
 const FEATURE_LABELS = {
@@ -33,6 +34,35 @@ const PricingPage = () => {
   const [subscribingTo, setSubscribingTo] = useState(null);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const isAr = language === "ar";
+    const title = isAr
+      ? "باقات وأسعار اشتراكات Thenith | Plans & Pricing"
+      : "Thenith Plans & Pricing";
+    const description = isAr
+      ? "اختر الباقة المناسبة لاحتياجاتك من Thenith. استمتع بميزات البطاقات الذكية، تحليلات الزيارات، النماذج المخصصة، وحجز المواعيد."
+      : "Choose the perfect Thenith plan for your digital identity. Smart card features, advanced analytics, custom lead forms, and booking calendar.";
+
+    applyPageSeo({
+      title,
+      description,
+      canonicalUrl: `${PRODUCTION_DOMAIN}/pricing`,
+      robots: "index, follow",
+      breadcrumbs: [
+        { name: isAr ? "الرئيسية" : "Home", url: "/" },
+        { name: isAr ? "الأسعار والباقات" : "Pricing & Plans", url: "/pricing" },
+      ],
+      lang: language,
+      dir: isAr ? "rtl" : "ltr",
+      openGraph: {
+        title,
+        description,
+        url: `${PRODUCTION_DOMAIN}/pricing`,
+        type: "website",
+      },
+    });
+  }, [language]);
+
   const handleSubscribe = async (plan) => {
     setSubscribingTo(plan.key);
     try {
@@ -50,6 +80,37 @@ const PricingPage = () => {
         window.location.href = "/u";
         return;
       }
+
+      // Check if user has an active pending Fawry or Mobile Wallet payment
+      try {
+        const pendingData = await api.payment.getPending();
+        if (pendingData?.success) {
+          const isCard = (p) => {
+            const tx = p?.transaction || p;
+            if (!tx) return false;
+            if (tx.paymentMethodId === 2) return true;
+            const name = `${tx.paymentMethodName || p?.paymentMethod || ""}`.toLowerCase();
+            return (
+              name.includes("visa") ||
+              name.includes("mastercard") ||
+              name.includes("card") ||
+              name.includes("فيزا") ||
+              name.includes("بطاق")
+            );
+          };
+          const nonCardSubs = (pendingData.subscriptions || []).filter((s) => !isCard(s));
+          const nonCardOrders = (pendingData.orders || []).filter((o) => !isCard(o));
+          if (nonCardSubs.length > 0 || nonCardOrders.length > 0) {
+            alert(
+              language === "ar"
+                ? "لديك عملية دفع قيد الانتظار (فوري / محفظة إلكترونية). يرجى استكمال الدفع أو إلغاؤه أولاً من لوحة التحكم قبل الاشتراك في باقة جديدة."
+                : "You have a pending payment (Fawry / Mobile Wallet). Please complete or cancel it from your dashboard before subscribing."
+            );
+            window.location.href = "/u?tab=subscriptions";
+            return;
+          }
+        }
+      } catch (e) {}
 
       const period = isAnnual ? "yearly" : "monthly";
       window.location.href = `/u?tab=subscriptions&checkout=true&period=${period}`;

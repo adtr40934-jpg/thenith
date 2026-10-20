@@ -4,7 +4,7 @@ export default function ProfileCover({ coverImage = "", coverText = "" }) {
       {coverImage ? (
         <img
           src={coverImage}
-          alt="Cover"
+          alt={coverText ? `صورة غلاف بروفايل ${coverText}` : "صورة غلاف بروفايل Thenith"}
           className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (

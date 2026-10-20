@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, ArrowUpRight } from "lucide-react";
 import { isFeatureEnabled } from "../../config/features.js";
 
 import EditorTabs from "./editor/EditorTabs.jsx";
@@ -13,6 +13,7 @@ export default function CardEditor({
   t,
   language,
   card,
+  activeCardLink,
   section,
   dragItem,
   linkDraft,
@@ -69,23 +70,38 @@ export default function CardEditor({
   };
 
   return (
-    <section className="space-y-4 p-0 sm:p-3 md:p-0">
-      <div className="space-y-3 bg-transparent p-0 sm:rounded-[24px] sm:space-y-4 sm:bg-white sm:p-4 sm:shadow-sm dark:sm:bg-slate-950/45 md:bg-transparent md:p-0 md:shadow-none">
+    <section className="space-y-4">
+      <div className="space-y-3 rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-950/45 sm:space-y-4 sm:p-5 md:bg-transparent md:p-0 md:shadow-none">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div className="min-w-0">
-            <p className="text-xs font-black text-indigo-600">
+            <p className="text-[11px] sm:text-xs font-black text-indigo-600">
               {t("editCard")}
             </p>
-            <h1 className="mt-1 truncate text-xl font-black sm:text-2xl">
+            <h1 className="mt-0.5 sm:mt-1 truncate text-lg sm:text-2xl font-black text-slate-900 dark:text-white">
               {card.name}
             </h1>
           </div>
-          <button
-            onClick={onBack}
-            className="min-h-10 w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 sm:w-auto"
-          >
-            {t("backToCards")}
-          </button>
+          <div className="flex w-full sm:w-auto items-center gap-2">
+            {activeCardLink && (
+              <a
+                href={activeCardLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-10 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-2 text-xs sm:text-sm font-bold text-indigo-600 hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50 active:scale-95 transition-all shadow-xs"
+                title={language === "ar" ? "معاينة البطاقة في تبويب جديد" : "Preview Card"}
+              >
+                <Eye className="h-4 w-4" />
+                <span>{language === "ar" ? "معاينة" : "Preview"}</span>
+                <ArrowUpRight className="h-3.5 w-3.5 opacity-70" />
+              </a>
+            )}
+            <button
+              onClick={onBack}
+              className="min-h-10 flex-1 sm:flex-none rounded-xl border border-slate-200 px-4 py-2 text-xs sm:text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900 active:scale-95 transition-all"
+            >
+              {t("backToCards")}
+            </button>
+          </div>
         </div>
         <EditorTabs
           t={t}

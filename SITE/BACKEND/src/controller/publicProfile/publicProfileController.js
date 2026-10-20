@@ -13,14 +13,51 @@ const { canAccess, getFeatureLimit, buildPublicCardDTO } = _entitlements1852;
 import _env1982 from "../../config/env.js";
 const { env } = _env1982;
 
+// ── In-Memory LRU/TTL Caching for Public Profiles ──────────────────────────────
+const profileCache = new Map();
+const negative404Cache = new Map();
+const PROFILE_CACHE_TTL_MS = 30 * 1000; // 30 seconds
+const NEGATIVE_CACHE_TTL_MS = 10 * 1000; // 10 seconds for 404 lookups
+const MAX_CACHE_ENTRIES = 500;
+
+export function invalidateProfileCache(identifier = null) {
+  if (identifier) {
+    const key = String(identifier).trim().toLowerCase();
+    profileCache.delete(key);
+    negative404Cache.delete(key);
+  } else {
+    profileCache.clear();
+    negative404Cache.clear();
+  }
+}
+
+export function invalidateProfileCacheForUser(userId, publicId = null, username = null) {
+  if (publicId) {
+    const pKey = String(publicId).trim().toLowerCase();
+    profileCache.delete(pKey);
+    negative404Cache.delete(pKey);
+  }
+  if (username) {
+    const uKey = String(username).trim().toLowerCase();
+    profileCache.delete(uKey);
+    negative404Cache.delete(uKey);
+  }
+  const uIdStr = String(userId);
+  for (const [key, val] of profileCache.entries()) {
+    if (val.userId === uIdStr || val.data?.userPublicId === publicId) {
+      profileCache.delete(key);
+    }
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function findCardById(identifier) {
   let card = null;
   if (mongoose.Types.ObjectId.isValid(identifier)) {
-    card = await Card.findById(identifier);
+    card = await Card.findById(identifier).lean();
   }
-  if (!card) card = await Card.findOne({ publicId: identifier });
+  if (!card) card = await Card.findOne({ publicId: identifier }).lean();
   if (!card) throw new HttpError(404, "Public card not found");
   return card;
 }
@@ -30,7 +67,9 @@ async function findUserByPublicIdentifier(identifier) {
   const user = await User.findOne({
     isActive: { $ne: false },
     $or: [{ publicId: normalized }, { username: normalized }],
-  });
+  })
+    .select("_id publicId username activeCardId isActive")
+    .lean();
   if (!user) throw new HttpError(404, "Public profile not found");
   return user;
 }
@@ -38,40 +77,60 @@ async function findUserByPublicIdentifier(identifier) {
 // ── GET /p/:identifier (also /:identifier) ────────────────────────────────────
 const getPublicProfile = asyncHandler(async (request, response) => {
   const identifier = request.params.identifier;
+  const normalizedId = String(identifier).trim().toLowerCase();
+  const now = Date.now();
+
+  // 1. Negative 404 cache check
+  const cached404 = negative404Cache.get(normalizedId);
+  if (cached404 && now - cached404 < NEGATIVE_CACHE_TTL_MS) {
+    throw new HttpError(404, "Public profile not found");
+  }
+
+  // 2. Positive cache check
+  const cached = profileCache.get(normalizedId);
+  if (cached && now - cached.timestamp < PROFILE_CACHE_TTL_MS) {
+    response.setHeader("Cache-Control", "public, max-age=15, stale-while-revalidate=45");
+    return response.json(cached.data);
+  }
+
   let user = await findUserByPublicIdentifier(identifier).catch(() => null);
   let subscription = null;
+  let card = null;
 
   if (user) {
-    subscription = await getSubscriptionState(user._id);
+    // Parallelize subscription and active card lookup
+    [subscription, card] = await Promise.all([
+      getSubscriptionState(user._id),
+      Card.findActiveForUser(user._id, user.activeCardId),
+    ]);
+
     if (
       user.username &&
       identifier.trim().toLowerCase() === user.username.toLowerCase() &&
       !canAccess(subscription.entitlements, "customLink")
     ) {
       user = null;
+      card = null;
     }
   }
 
-  let card = null;
-  if (user) {
-    if (user.activeCardId) {
-      card = await Card.findOne({ _id: user.activeCardId, userId: user._id });
-    }
-    if (!card) {
-      card =
-        (await Card.findOne({ userId: user._id, isActive: true })) ||
-        (await Card.findOne({ userId: user._id }).sort({ createdAt: 1 }));
-    }
-  } else {
+  if (!card) {
     card = await findCardById(identifier).catch(() => null);
     if (card) {
-      user = await User.findOne({ _id: card.userId, isActive: { $ne: false } });
+      [user, subscription] = await Promise.all([
+        User.findOne({ _id: card.userId, isActive: { $ne: false } })
+          .select("_id publicId username activeCardId isActive")
+          .lean(),
+        getSubscriptionState(card.userId),
+      ]);
       if (!user) card = null;
-      if (card) subscription = await getSubscriptionState(card.userId);
     }
   }
 
-  if (!card) throw new HttpError(404, "Public card not found");
+  if (!card) {
+    negative404Cache.set(normalizedId, now);
+    throw new HttpError(404, "Public card not found");
+  }
 
   const maxCards = getFeatureLimit(subscription.entitlements, "maxCards");
   if (maxCards !== null) {
@@ -96,12 +155,29 @@ const getPublicProfile = asyncHandler(async (request, response) => {
     : user?.publicId || card.publicId;
   const primaryLink = `${baseUrl}/p/${userIdentifier}`;
 
-  response.json({
+  const responsePayload = {
     ...cardObj,
     userPublicId: user?.publicId || null,
     username: canUseUsername ? user.username : null,
     profileUrl: primaryLink,
-  });
+  };
+
+  // Cache positive response (LRU eviction if limit reached)
+  if (profileCache.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = profileCache.keys().next().value;
+    profileCache.delete(oldestKey);
+  }
+  const uIdStr = String(user?._id || card.userId);
+  profileCache.set(normalizedId, { data: responsePayload, timestamp: now, userId: uIdStr });
+  if (user?.publicId) {
+    profileCache.set(String(user.publicId).toLowerCase(), { data: responsePayload, timestamp: now, userId: uIdStr });
+  }
+  if (canUseUsername && user?.username) {
+    profileCache.set(String(user.username).toLowerCase(), { data: responsePayload, timestamp: now, userId: uIdStr });
+  }
+
+  response.setHeader("Cache-Control", "public, max-age=15, stale-while-revalidate=45");
+  response.json(responsePayload);
 });
 
 // ── POST /public/contact ──────────────────────────────────────────────────────
@@ -143,4 +219,6 @@ const submitContact = asyncHandler(async (req, res) => {
 export default {
   getPublicProfile,
   submitContact,
+  invalidateProfileCache,
+  invalidateProfileCacheForUser,
 };

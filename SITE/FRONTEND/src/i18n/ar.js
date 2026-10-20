@@ -12,7 +12,7 @@ export const ar = {
     logout: "تسجيل الخروج",
     support: "تواصل معنا",
     supportDescription: "تابع محادثتك مع فريق الدعم من نفس حسابك.",
-    proFeatureOnly: "هذه الميزة متاحة فقط في باقة Pro",
+    proFeatureOnly: "هذه الميزة متاحة في باقة Pro",
     proFeatureText: "قم بالترقية الآن للوصول إلى جميع الميزات المتقدمة.",
     limitReachedTitle: "تم بلوغ الحد الأقصى",
     limitReachedText: "لقد وصلت إلى الحد الأقصى المسموح به في باقتك الحالية.",

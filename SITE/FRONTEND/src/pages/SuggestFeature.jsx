@@ -1,9 +1,39 @@
 import { useGlobalLanguage } from "../context/GlobalLanguageContext.jsx";
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
+import { applyPageSeo, PRODUCTION_DOMAIN } from "../utils/seo.js";
 
 export default function SuggestFeature() {
-  const { t } = useGlobalLanguage();
+  const { t, language } = useGlobalLanguage();
+
+  useEffect(() => {
+    const isAr = language === "ar";
+    const title = isAr
+      ? "اقتراح ميزة جديدة | Thenith Suggest a Feature"
+      : "Suggest a Feature | Thenith";
+    const description = isAr
+      ? "شاركنا أفكارك واقتراحاتك لتطوير منصة Thenith للبطاقات الذكية والهوية الرقمية."
+      : "Share your ideas and feature requests to help improve the Thenith platform.";
+
+    applyPageSeo({
+      title,
+      description,
+      canonicalUrl: `${PRODUCTION_DOMAIN}/suggest`,
+      robots: "index, follow",
+      breadcrumbs: [
+        { name: isAr ? "الرئيسية" : "Home", url: "/" },
+        { name: isAr ? "اقتراح ميزة" : "Suggest Feature", url: "/suggest" },
+      ],
+      lang: language,
+      dir: isAr ? "rtl" : "ltr",
+      openGraph: {
+        title,
+        description,
+        url: `${PRODUCTION_DOMAIN}/suggest`,
+        type: "website",
+      },
+    });
+  }, [language]);
   return (
     <div
       className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col"

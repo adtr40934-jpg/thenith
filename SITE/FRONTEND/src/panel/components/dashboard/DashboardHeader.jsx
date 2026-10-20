@@ -48,7 +48,7 @@ export default function DashboardHeader({
         <div className="flex items-center gap-2">
           <button
             onClick={toggleTheme}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+            className="hidden md:flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
             title={theme === "dark" ? "Light mode" : "Dark mode"}
             aria-label={theme === "dark" ? "Light mode" : "Dark mode"}
           >
@@ -60,7 +60,7 @@ export default function DashboardHeader({
           </button>
           <button
             onClick={toggleLanguage}
-            className="flex h-10 min-w-10 items-center justify-center gap-1 rounded-xl border border-indigo-100 bg-indigo-50 px-2 text-xs font-black text-indigo-600 hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-300"
+            className="hidden md:flex h-10 min-w-10 items-center justify-center gap-1 rounded-xl border border-indigo-100 bg-indigo-50 px-2 text-xs font-black text-indigo-600 hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-300"
             title={language === "ar" ? "English" : "العربية"}
           >
             <Languages className="h-4 w-4" />
@@ -88,7 +88,7 @@ export default function DashboardHeader({
                   exit={{ opacity: 0, y: 8, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
                   dir={language === "ar" ? "rtl" : "ltr"}
-                  className="absolute end-0 top-12 z-50 w-72 sm:w-80 rounded-2xl border border-slate-100 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+                  className="fixed inset-x-3 top-16 z-50 max-h-[80vh] overflow-y-auto rounded-2xl border border-slate-100 bg-white p-4 shadow-2xl dark:border-slate-800 dark:bg-slate-950 sm:absolute sm:inset-x-auto sm:right-0 sm:left-auto sm:top-12 sm:w-80 sm:max-w-[calc(100vw-2rem)] sm:max-h-96"
                 >
                     <h3 className="mb-3 text-sm font-bold text-slate-800 dark:text-white">
                       {t("recentNotifications")}
@@ -137,7 +137,7 @@ export default function DashboardHeader({
           </div>
           <button
             onClick={onLogout}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-500 transition-colors hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/40"
+            className="hidden md:flex h-10 w-10 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 text-rose-500 transition-colors hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/40"
             title="Logout"
           >
             <LogOut className="h-5 w-5" />

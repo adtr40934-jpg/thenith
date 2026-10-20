@@ -87,13 +87,6 @@ async function initSocket(server) {
 
       if (isLoggedInOwner || isGuestOwner || hasAnyGuestIdentity) {
         socket.join(`customerService_${customerServiceId}`);
-        console.log(
-          `Socket ${socket.id} joined customerService_${customerServiceId} (user:${isLoggedInOwner} guest:${isGuestOwner})`,
-        );
-      } else {
-        console.log(
-          `Socket ${socket.id} DENIED access to customerService_${customerServiceId}`,
-        );
       }
     });
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Mail,
   Globe,
@@ -9,6 +9,10 @@ import {
   MapPin,
   Phone,
   CalendarDays,
+  Calendar,
+  BarChart2,
+  Eye,
+  MessageSquare,
   MousePointerClick,
   TrendingUp,
   X,
@@ -19,6 +23,12 @@ import {
   Link2,
   Download,
   Loader2,
+  Lock,
+  Sparkles,
+  ArrowUpRight,
+  ChevronDown,
+  CreditCard,
+  Layers,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { QRCodeSVG } from "qrcode.react";
@@ -118,22 +128,77 @@ export default function HomePage({
   entitlements,
   activeCardLink,
   activeCardId,
+  onUpgrade,
 }) {
+  const canViewAdvancedAnalytics = canAccess(entitlements, "advancedAnalytics");
+  const isFreePlan = !canViewAdvancedAnalytics;
   const [selectedCardId, setSelectedCardId] = useState("all");
-  const [timeframe, setTimeframe] = useState("week"); // 'week' (daily), 'month', 'year'
+  const [timeframe, setTimeframe] = useState("today");
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [selectedLinkDetails, setSelectedLinkDetails] = useState(null);
+
+  useEffect(() => {
+    if (isFreePlan && timeframe !== "today") {
+      setTimeframe("today");
+    }
+  }, [isFreePlan]);
+
+  const triggerUpgradePrompt = (title, message) => {
+    import("sweetalert2").then((Swal) => {
+      Swal.default.fire({
+        title: title || t("proFeatureOnly") || (language === "ar" ? "هذه الميزة متاحة في باقة Pro" : "This feature is available in Pro plan"),
+        text: message || t("proFeatureText") || (language === "ar" ? "قم بالترقية الآن للوصول إلى جميع الميزات المتقدمة." : "Upgrade now to access all advanced features."),
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: language === "ar" ? "تصفح الباقات" : "View Plans",
+        cancelButtonText: language === "ar" ? "إلغاء" : "Cancel",
+        confirmButtonColor: "#4f46e5",
+      }).then((result) => {
+        if (result.isConfirmed && onUpgrade) {
+          onUpgrade();
+        }
+      });
+    });
+  };
 
   // Share Modal State
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Card selector dropdown state & click-outside
+  const [isCardDropdownOpen, setIsCardDropdownOpen] = useState(false);
+  const cardDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (cardDropdownRef.current && !cardDropdownRef.current.contains(e.target)) {
+        setIsCardDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedCard = useMemo(() => {
+    if (selectedCardId === "all") return null;
+    return cards.find((c) => c.id === selectedCardId) || null;
+  }, [selectedCardId, cards]);
+
+  const currentDisplayLink = useMemo(() => {
+    if (!selectedCard) return activeCardLink;
+    const cardIndex = cards.findIndex((c) => c.id === selectedCard.id);
+    if (cardIndex === 0 && activeCardLink) {
+      return activeCardLink;
+    }
+    return `${window.location.origin}/p/${selectedCard.publicId || ""}`;
+  }, [selectedCard, cards, activeCardLink]);
+
   const handleCopyLink = async () => {
-    if (!activeCardLink) return;
+    const link = currentDisplayLink || activeCardLink;
+    if (!link) return;
     try {
-      await navigator.clipboard.writeText(activeCardLink);
+      await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -141,12 +206,13 @@ export default function HomePage({
   };
 
   const handleNativeShare = async () => {
-    if (!activeCardLink) return;
+    const link = currentDisplayLink || activeCardLink;
+    if (!link) return;
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "My Thenith Profile",
-          url: activeCardLink,
+          title: selectedCard?.name || "My Thenith Profile",
+          url: link,
         });
       } catch (err) {
       }
@@ -158,10 +224,10 @@ export default function HomePage({
   const handleDownloadQr = async () => {
     setIsDownloading(true);
     try {
-      const activeCard = cards.find((c) => c.id === activeCardId);
+      const targetCard = selectedCard || cards.find((c) => c.id === activeCardId);
       await downloadQrCode1080({
         svgId: "home-qr-svg",
-        cardName: activeCard?.name || "Card",
+        cardName: targetCard?.name || "Card",
         includeCenterBadge: false,
       });
     } catch (err) {
@@ -175,8 +241,55 @@ export default function HomePage({
       ? cards
       : cards.filter((c) => c.id === selectedCardId);
 
+  // Calculate Today's Visits across active cards
+  const todayVisitsCount = useMemo(() => {
+    let sum = 0;
+    activeCards.forEach((card) => {
+      if (typeof card.analytics?.visits?.today === "number") {
+        sum += card.analytics.visits.today;
+      } else {
+        const monthArr = card.analytics?.visits?.month;
+        if (Array.isArray(monthArr) && monthArr.length === 30) {
+          sum += (monthArr[29] || 0);
+        } else {
+          const weekArr = card.analytics?.visits?.week;
+          const now = new Date();
+          const day = now.getDay();
+          const diffToSaturday = day === 6 ? 0 : day + 1;
+          sum += (weekArr?.[diffToSaturday] || 0);
+        }
+      }
+    });
+    return sum;
+  }, [activeCards]);
+
+  // Calculate Today's Clicks across active cards
+  const todayClicksCount = useMemo(() => {
+    let sum = 0;
+    activeCards.forEach((card) => {
+      if (typeof card.analytics?.clicks?.today === "number") {
+        sum += card.analytics.clicks.today;
+      } else {
+        const lc = card.analytics?.linkClicks || {};
+        Object.values(lc).forEach((linkData) => {
+          sum += (linkData.today || 0);
+        });
+      }
+    });
+    return sum;
+  }, [activeCards]);
+
   // Aggregate Visits
   const aggregatedVisits = useMemo(() => {
+    if (timeframe === "today") {
+      return [
+        0,
+        Math.floor(todayVisitsCount * 0.25),
+        Math.floor(todayVisitsCount * 0.5),
+        Math.floor(todayVisitsCount * 0.75),
+        todayVisitsCount,
+      ];
+    }
     const baseLength =
       timeframe === "week" ? 7 : timeframe === "month" ? 30 : 12;
     const result = Array(baseLength).fill(0);
@@ -188,9 +301,9 @@ export default function HomePage({
       });
     });
     return result;
-  }, [activeCards, timeframe]);
+  }, [activeCards, timeframe, todayVisitsCount]);
 
-  const totalVisitsCount = aggregatedVisits.reduce((a, b) => a + b, 0);
+  const totalVisitsCount = timeframe === "today" ? todayVisitsCount : aggregatedVisits.reduce((a, b) => a + b, 0);
 
   // Aggregate Links
   const linkPerformance = useMemo(() => {
@@ -202,16 +315,19 @@ export default function HomePage({
             name: language === "ar" && link.nameAr ? link.nameAr : link.name,
             icon: getIconForLink(link.name),
             clicks: 0,
+            todayClicks: 0,
             countries: {},
           };
 
         const clickData = card.analytics?.linkClicks?.[link.url] || {
           total: 0,
+          today: 0,
           countries: {},
         };
-        linksMap[link.name].clicks += clickData.total;
+        linksMap[link.name].clicks += (clickData.total || 0);
+        linksMap[link.name].todayClicks += (clickData.today || 0);
 
-        Object.entries(clickData.countries).forEach(([country, val]) => {
+        Object.entries(clickData.countries || {}).forEach(([country, val]) => {
           linksMap[link.name].countries[country] =
             (linksMap[link.name].countries[country] || 0) + val;
         });
@@ -234,7 +350,6 @@ export default function HomePage({
   }, [activeCards]);
 
   const totalLinkClicks = linkPerformance.reduce((a, b) => a + b.clicks, 0);
-  const canViewAdvancedAnalytics = canAccess(entitlements, "advancedAnalytics");
 
   // Chart math
   const chartPoints = useMemo(() => {
@@ -245,18 +360,34 @@ export default function HomePage({
     return aggregatedVisits.map((value, index) => {
       const visualIndex = language === "ar" ? (aggregatedVisits.length - 1) - index : index;
       const x = 32 + (visualIndex * 436) / (aggregatedVisits.length - 1);
-      const y = 130 - ((value - minVal) / (maxVal - minVal || 1)) * 90;
 
       let label = "";
       let fullLabel = "";
+      let isTodayPoint = false;
 
       const today = new Date();
-      if (timeframe === "week") {
-        // Backend now returns index 0 = Saturday, ..., index 6 = Friday
-        const mapIndex = index === 0 ? 6 : index - 1; // map to labels.week which has Sunday at 0
+      if (timeframe === "today") {
+        const hourLabels = {
+          ar: ["12 ص", "6 ص", "12 م", "6 م", "الآن"],
+          en: ["12 AM", "6 AM", "12 PM", "6 PM", "Now"],
+        };
+        label = hourLabels[language]?.[index] || "";
+        isTodayPoint = true;
+        fullLabel = index === 4
+          ? (language === "ar" ? "إجمالي زيارات اليوم" : "Today's Total Visits")
+          : `${label} - ${value} ${language === "ar" ? "زيارة" : "visits"}`;
+      } else if (timeframe === "week") {
+        const mapIndex = index === 0 ? 6 : index - 1;
+        const day = today.getDay();
+        const diffToSaturday = day === 6 ? 0 : day + 1;
+        isTodayPoint = index === diffToSaturday;
 
-        label = labels.week[language][mapIndex];
-        fullLabel = labels.week[language][mapIndex];
+        label = isTodayPoint
+          ? (language === "ar" ? "اليوم" : "Today")
+          : labels.week[language][mapIndex];
+        fullLabel = isTodayPoint
+          ? (language === "ar" ? "اليوم" : "Today")
+          : labels.week[language][mapIndex];
       } else if (timeframe === "year") {
         const d = new Date(today);
         d.setMonth(today.getMonth() - (11 - index));
@@ -269,6 +400,7 @@ export default function HomePage({
         const d = new Date(today);
         d.setDate(today.getDate() - (29 - index));
         const isToday = index === 29;
+        isTodayPoint = isToday;
         const dayNum = d.getDate();
 
         label = index % 5 === 0 || isToday ? (isToday ? (language === "ar" ? "اليوم" : "Today") : `${dayNum}`) : "";
@@ -276,9 +408,13 @@ export default function HomePage({
           ? (language === "ar" ? "اليوم" : "Today")
           : d.toLocaleDateString(language === "ar" ? "ar-EG-u-nu-latn" : "en-US", { month: "short", day: "numeric" });
       }
-      return { x, y, value, label, fullLabel, index };
+
+      const pointValue = isFreePlan && timeframe !== "today" ? (isTodayPoint ? todayVisitsCount : 0) : value;
+      const y = 130 - ((pointValue - minVal) / (maxVal - minVal || 1)) * 90;
+
+      return { x, y, value: pointValue, label, fullLabel, index, isTodayPoint };
     });
-  }, [aggregatedVisits, timeframe, language]);
+  }, [aggregatedVisits, timeframe, language, isFreePlan, todayVisitsCount]);
 
   const pathD = chartPoints.reduce((path, point, index) => {
     if (index === 0) return `M ${point.x} ${point.y}`;
@@ -296,130 +432,295 @@ export default function HomePage({
   allMessages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const recentMessages = allMessages.slice(0, 3);
 
-  const totalDirectContacts = cards.reduce(
+  const totalDirectContacts = activeCards.reduce(
     (sum, card) =>
       sum + (card.requests?.length || 0) + (card.appointments?.length || 0),
     0,
   );
 
-  const dynamicMetrics = [
-    {
-      id: "visits",
-      labelKey: "metrics.totalVisits",
-      value: totalVisitsCount.toLocaleString("en-US"),
-      hintKey: "metrics.visitsHint",
-    },
-    {
-      id: "linkClicks",
-      labelKey: "metrics.linkClicks",
-      value: totalLinkClicks.toLocaleString("en-US"),
-      hintKey: "metrics.linksHint",
-    },
-    {
-      id: "directContacts",
-      labelKey: "metrics.directContacts",
-      value: totalDirectContacts.toLocaleString("en-US"),
-      hintKey: "metrics.contactsHint",
-    },
-  ];
+  const dynamicMetrics = isFreePlan
+    ? [
+        {
+          id: "todayVisits",
+          label: language === "ar" ? "زيارات اليوم" : "Today's Visits",
+          value: todayVisitsCount.toLocaleString("en-US"),
+          hint: language === "ar" ? "الزيارات المسجلة لكروتك اليوم" : "Visits recorded today",
+          badge: language === "ar" ? "اليوم" : "Today",
+        },
+        {
+          id: "todayClicks",
+          label: language === "ar" ? "ضغطات اليوم" : "Today's Clicks",
+          value: todayClicksCount.toLocaleString("en-US"),
+          hint: language === "ar" ? "النقرات على الروابط اليوم" : "Clicks on links today",
+          badge: language === "ar" ? "اليوم" : "Today",
+        },
+        {
+          id: "directContacts",
+          label: language === "ar" ? "الرسائل المباشرة" : "Direct Contacts",
+          value: totalDirectContacts.toLocaleString("en-US"),
+          hint: language === "ar" ? "الرسائل والحجوزات" : "Messages & bookings",
+        },
+      ]
+    : [
+        {
+          id: "visits",
+          label:
+            timeframe === "today"
+              ? (language === "ar" ? "زيارات اليوم" : "Today's Visits")
+              : (timeframe === "week"
+                  ? (language === "ar" ? "زيارات هذا الأسبوع" : "Weekly Visits")
+                  : (timeframe === "month"
+                      ? (language === "ar" ? "زيارات هذا الشهر" : "Monthly Visits")
+                      : (language === "ar" ? "زيارات هذا العام" : "Yearly Visits"))),
+          value: totalVisitsCount.toLocaleString("en-US"),
+          hint:
+            timeframe === "today"
+              ? (language === "ar" ? "الزيارات المسجلة لكروتك اليوم" : "Visits recorded today")
+              : (language === "ar"
+                  ? `منها ${todayVisitsCount.toLocaleString("en-US")} اليوم`
+                  : `${todayVisitsCount.toLocaleString("en-US")} today`),
+          badge:
+            language === "ar"
+              ? (timeframe === "today" ? "اليوم" : timeframe === "week" ? "أسبوعي" : timeframe === "month" ? "شهري" : "سنوي")
+              : (timeframe === "today" ? "Today" : timeframe === "week" ? "Weekly" : timeframe === "month" ? "Monthly" : "Yearly"),
+        },
+        {
+          id: "linkClicks",
+          label:
+            timeframe === "today"
+              ? (language === "ar" ? "ضغطات اليوم" : "Today's Clicks")
+              : t("metrics.linkClicks"),
+          value: (timeframe === "today" ? todayClicksCount : totalLinkClicks).toLocaleString("en-US"),
+          hint:
+            timeframe === "today"
+              ? (language === "ar" ? "النقرات على الروابط اليوم" : "Clicks on links today")
+              : (language === "ar"
+                  ? `منها ${todayClicksCount.toLocaleString("en-US")} اليوم`
+                  : `${todayClicksCount.toLocaleString("en-US")} today`),
+          badge:
+            language === "ar"
+              ? (timeframe === "today" ? "اليوم" : timeframe === "week" ? "أسبوعي" : timeframe === "month" ? "شهري" : "سنوي")
+              : (timeframe === "today" ? "Today" : timeframe === "week" ? "Weekly" : timeframe === "month" ? "Monthly" : "Yearly"),
+        },
+        {
+          id: "directContacts",
+          label: t("metrics.directContacts"),
+          value: totalDirectContacts.toLocaleString("en-US"),
+          hint: t("metrics.contactsHint"),
+        },
+      ];
 
   return (
-    <section className="space-y-4 p-0 sm:space-y-6 sm:p-3 md:p-0">
-      <PendingPaymentAlert />
-
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    <section className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 dark:text-white">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">
             {t("home")}
           </h1>
-          <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">
             {t("homeIntro")}
           </p>
         </div>
 
         {isFeatureEnabled("analytics") && (
-          <select
-            value={selectedCardId}
-            onChange={(e) => setSelectedCardId(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white/70 backdrop-blur-md px-4 py-2 text-sm font-bold text-slate-700 outline-hidden shadow-xs hover:border-indigo-300 hover:shadow-indigo-500/10 transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:border-indigo-500/50"
-          >
-            <option value="all">{t("allCards")}</option>
-            {cards.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.name}
-              </option>
-            ))}
-          </select>
+          <div ref={cardDropdownRef} className="relative w-full sm:w-auto sm:min-w-[220px]">
+            <button
+              type="button"
+              onClick={() => setIsCardDropdownOpen(!isCardDropdownOpen)}
+              className="w-full min-h-[44px] flex items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-md px-3.5 sm:px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-800 shadow-xs transition-all hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-500/5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-100 dark:hover:border-indigo-500/40"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
+                  {selectedCardId === "all" ? (
+                    <Layers className="h-4 w-4" />
+                  ) : (
+                    <CreditCard className="h-4 w-4" />
+                  )}
+                </div>
+                <span className="truncate">
+                  {selectedCardId === "all"
+                    ? (t("allCards") || (language === "ar" ? "جميع البطاقات" : "All Cards"))
+                    : (selectedCard?.name || t("allCards"))}
+                </span>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${
+                  isCardDropdownOpen ? "rotate-180 text-indigo-600 dark:text-indigo-400" : ""
+                }`}
+              />
+            </button>
+
+            <AnimatePresence>
+              {isCardDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute end-0 top-full mt-1.5 z-40 w-full sm:min-w-[240px] rounded-2xl border border-slate-100 bg-white/95 p-1.5 shadow-xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCardId("all");
+                      setIsCardDropdownOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-colors ${
+                      selectedCardId === "all"
+                        ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300"
+                        : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Layers className="h-4 w-4 shrink-0 text-indigo-500" />
+                      <span className="truncate">{t("allCards") || (language === "ar" ? "جميع البطاقات" : "All Cards")}</span>
+                    </div>
+                    {selectedCardId === "all" && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    )}
+                  </button>
+
+                  <div className="my-1 border-t border-slate-100 dark:border-slate-800/80" />
+
+                  <div className="max-h-60 overflow-y-auto space-y-0.5">
+                    {cards.map((card) => {
+                      const isSelected = selectedCardId === card.id;
+                      return (
+                        <button
+                          key={card.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCardId(card.id);
+                            setIsCardDropdownOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-colors ${
+                            isSelected
+                              ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300"
+                              : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <CreditCard className="h-4 w-4 shrink-0 text-slate-400" />
+                            <span className="truncate">{card.name}</span>
+                          </div>
+                          {isSelected && (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         )}
       </div>
 
       {/* Main Profile Link Card */}
-      {activeCardLink && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-white p-5 shadow-sm dark:border-indigo-900/50 dark:from-indigo-950/20 dark:to-slate-900/50 relative overflow-hidden">
-          <div className="absolute top-0 end-0 h-32 w-32 translate-x-8 -translate-y-8 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-500/10"></div>
+      {currentDisplayLink && (
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 sm:gap-4 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/50 to-white p-4 sm:p-5 shadow-sm dark:border-indigo-900/50 dark:from-indigo-950/20 dark:to-slate-900/50 relative overflow-hidden">
+          <div className="absolute top-0 end-0 h-32 w-32 translate-x-8 -translate-y-8 rounded-full bg-indigo-500/5 blur-3xl dark:bg-indigo-500/10 pointer-events-none"></div>
 
-          <div className="flex items-center gap-4 relative z-10 w-full sm:w-auto">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 shadow-inner">
-              <Link2 className="h-6 w-6" />
+          <div className="flex items-center gap-3 sm:gap-4 relative z-10 min-w-0 flex-1">
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 shadow-inner">
+              <Link2 className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <div className="flex flex-col overflow-hidden w-full">
-              <span className="text-xs font-bold text-indigo-600/80 dark:text-indigo-400/80 uppercase tracking-wider mb-1">
-                {t("yourProfileLink") || "Your Public Link"}
-              </span>
+            <div className="flex flex-col overflow-hidden min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[10px] sm:text-xs font-bold text-indigo-600/80 dark:text-indigo-400/80 uppercase tracking-wider">
+                  {selectedCard
+                    ? (language === "ar" ? `رابط بطاقة: ${selectedCard.name}` : `Card Link: ${selectedCard.name}`)
+                    : (t("yourProfileLink") || (language === "ar" ? "رابط ملفك الشخصي الأساسي" : "Your Public Link"))}
+                </span>
+                {selectedCard && (
+                  <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                    {language === "ar" ? "محددة" : "Selected"}
+                  </span>
+                )}
+              </div>
               <a
-                href={activeCardLink}
+                href={currentDisplayLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm sm:text-base font-medium text-slate-800 dark:text-slate-200 truncate hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 truncate hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                dir="ltr"
               >
-                {activeCardLink.replace(/^https?:\/\//, "")}
+                {currentDisplayLink.replace(/^https?:\/\//, "")}
               </a>
             </div>
           </div>
 
-          <div className="flex w-full sm:w-auto shrink-0 gap-2 relative z-10">
+          {/* Action Buttons: Preview (معاينة), Copy (نسخ), Share (مشاركة) */}
+          <div className="grid grid-cols-3 gap-2 w-full md:flex md:w-auto shrink-0 relative z-10">
+            {/* معاينة / Preview */}
+            <a
+              href={currentDisplayLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200/80 bg-white/90 px-3 py-2.5 text-xs sm:text-sm font-bold text-indigo-600 shadow-xs transition-all hover:bg-indigo-50 hover:border-indigo-300 dark:border-indigo-900/50 dark:bg-slate-900/80 dark:text-indigo-300 dark:hover:bg-slate-800 active:scale-95 min-h-[42px] sm:min-h-[44px]"
+              title={language === "ar" ? "معاينة البطاقة في تبويب جديد" : "Preview Card"}
+            >
+              <Eye className="h-4 w-4 shrink-0" />
+              <span>{language === "ar" ? "معاينة" : "Preview"}</span>
+            </a>
+
+            {/* نسخ / Copy */}
             <button
+              type="button"
               onClick={handleCopyLink}
-              className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm border border-slate-200 transition-all hover:bg-slate-50 hover:text-indigo-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs sm:text-sm font-bold text-slate-700 shadow-xs transition-all hover:bg-slate-50 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800 active:scale-95 min-h-[42px] sm:min-h-[44px]"
             >
               {copied ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
               ) : (
-                <Copy className="h-4 w-4" />
+                <Copy className="h-4 w-4 shrink-0" />
               )}
-              {copied ? t("copied") || "Copied!" : t("copy") || "Copy"}
+              <span>{copied ? (t("copied") || (language === "ar" ? "تم!" : "Copied!")) : (t("copy") || (language === "ar" ? "نسخ" : "Copy"))}</span>
             </button>
+
+            {/* مشاركة / Share */}
             <button
+              type="button"
               onClick={() => setIsShareModalOpen(true)}
-              className="flex flex-1 sm:flex-none items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-500/20 transition-all hover:bg-indigo-700 hover:shadow-indigo-500/30 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2.5 text-xs sm:text-sm font-bold text-white shadow-md shadow-indigo-500/20 transition-all hover:bg-indigo-700 hover:shadow-indigo-500/30 dark:bg-indigo-500 dark:hover:bg-indigo-600 active:scale-95 min-h-[42px] sm:min-h-[44px]"
             >
-              <Share2 className="h-4 w-4" />
-              {t("share") || "Share"}
+              <Share2 className="h-4 w-4 shrink-0" />
+              <span>{t("share") || (language === "ar" ? "مشاركة" : "Share")}</span>
             </button>
           </div>
         </div>
       )}
 
       {isFeatureEnabled("analytics") && (
-        <div className="grid gap-4 md:grid-cols-3">
-          {dynamicMetrics.map((metric) => (
-            <div
-              key={metric.id}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md hover:shadow-indigo-500/5 dark:border-slate-800/80 dark:bg-slate-900/50"
-            >
-              <div className="absolute -end-4 -top-4 h-24 w-24 rounded-full bg-indigo-50 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-indigo-500/5 blur-2xl" />
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 relative z-10">
-                {t(metric.labelKey)}
-              </p>
-              <p className="mt-2 text-3xl font-black text-slate-800 dark:text-white relative z-10">
-                {metric.value}
-              </p>
-              <p className="mt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 relative z-10">
-                {t(metric.hintKey)}
-              </p>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
+            {dynamicMetrics.map((metric) => (
+              <div
+                key={metric.id}
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-4 sm:p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800/80 dark:bg-slate-900/50"
+              >
+                <div className="absolute -end-4 -top-4 h-24 w-24 rounded-full bg-indigo-50 opacity-0 transition-opacity group-hover:opacity-100 dark:bg-indigo-500/5 blur-2xl" />
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 relative z-10">
+                    {metric.label || t(metric.labelKey)}
+                  </p>
+                  {metric.badge && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40">
+                      {metric.badge}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-2xl sm:text-3xl font-black text-slate-800 dark:text-white relative z-10">
+                  {metric.value}
+                </p>
+                <p className="mt-1 text-[11px] sm:text-xs font-bold text-emerald-600 dark:text-emerald-400 relative z-10">
+                  {metric.hint || t(metric.hintKey)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {isFeatureEnabled("analytics") && (
@@ -429,35 +730,56 @@ export default function HomePage({
               <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
                 <TrendingUp className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               </span>
-              {t("totalVisits")}
+              {timeframe === "today"
+                ? (language === "ar" ? "زيارات اليوم" : "Today's Visits")
+                : (timeframe === "week"
+                    ? (language === "ar" ? "زيارات الأسبوع" : "Weekly Visits")
+                    : (timeframe === "month"
+                        ? (language === "ar" ? "زيارات الشهر" : "Monthly Visits")
+                        : (language === "ar" ? "زيارات السنة" : "Yearly Visits")))}
             </h2>
 
-            <div className="flex rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-900/50">
-              {(canViewAdvancedAnalytics
-                ? ["week", "month", "year"]
-                : ["week"]
-              ).map((tf) => {
+            <div className="flex overflow-x-auto no-scrollbar max-w-full rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-900/50">
+              {["today", "week", "month", "year"].map((tf) => {
                 const tfLabels = {
                   ar: {
-                    week: "يومي",
+                    today: "اليوم",
+                    week: "أسبوعي",
                     month: "شهري",
                     year: "سنوي",
                   },
-                  en: { week: "Daily", month: "Monthly", year: "Yearly" },
+                  en: {
+                    today: "Today",
+                    week: "Weekly",
+                    month: "Monthly",
+                    year: "Yearly",
+                  },
                 };
+                const isLocked = isFreePlan && (tf === "week" || tf === "month" || tf === "year");
+                const isActive = timeframe === tf;
+
                 return (
                   <button
                     key={tf}
+                    type="button"
                     onClick={() => {
+                      if (isLocked) {
+                        triggerUpgradePrompt();
+                        return;
+                      }
                       setTimeframe(tf);
                       setHoveredPoint(null);
                     }}
-                    className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all duration-200 ${timeframe === tf
+                    className={`rounded-lg px-3 sm:px-4 py-1.5 text-xs font-bold transition-all duration-200 flex items-center gap-1.5 ${
+                      isActive
                         ? "bg-white text-indigo-600 shadow-xs dark:bg-slate-800 dark:text-indigo-400"
                         : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                      }`}
+                    }`}
                   >
-                    {tfLabels[language === "ar" ? "ar" : "en"][tf]}
+                    <span>{tfLabels[language === "ar" ? "ar" : "en"][tf]}</span>
+                    {isLocked && (
+                      <Lock className="w-3 h-3 text-amber-500 shrink-0" />
+                    )}
                   </button>
                 );
               })}
@@ -647,21 +969,41 @@ export default function HomePage({
         </div>
       )}
 
-      {canViewAdvancedAnalytics && linkPerformance.length > 0 && (
+      {linkPerformance.length > 0 && (
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:shadow-indigo-500/5 dark:border-slate-800/80 dark:bg-slate-900/50">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-black text-slate-800 dark:text-white">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
-              <MousePointerClick className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-            </span>
-            {t("linkClicks")}
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+                <MousePointerClick className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              </span>
+              {isFreePlan || timeframe === "today"
+                ? (language === "ar" ? "ضغطات الروابط (اليوم)" : "Link Clicks (Today)")
+                : t("linkClicks")}
+            </h2>
+            {(isFreePlan || timeframe === "today") && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400">
+                {language === "ar" ? "نقرات اليوم المسجلة" : "Today's recorded clicks"}
+              </span>
+            )}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {linkPerformance.map((link) => {
               const Icon = link.icon;
               return (
                 <button
                   key={link.name}
-                  onClick={() => setSelectedLinkDetails(link)}
+                  onClick={() => {
+                    if (isFreePlan) {
+                      triggerUpgradePrompt(
+                        language === "ar" ? "تحليلات الروابط المتقدمة" : "Advanced Link Analytics",
+                        language === "ar"
+                          ? "تفاصيل النقرات على مدار الشهر والسنة وتوزيع الدول متاحة في باقة برو وما بعدها."
+                          : "Detailed click analytics, history, and country distribution are available on Pro and Business plans."
+                      );
+                      return;
+                    }
+                    setSelectedLinkDetails(link);
+                  }}
                   className="group flex w-full items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3 outline-hidden transition-all hover:-translate-y-0.5 hover:border-indigo-100 hover:bg-white hover:shadow-md hover:shadow-indigo-500/5 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-800/50 dark:bg-slate-900/30 dark:hover:border-indigo-500/30 dark:hover:bg-slate-900/80"
                 >
                   <div className="flex items-center gap-3">
@@ -672,8 +1014,24 @@ export default function HomePage({
                       {link.name}
                     </p>
                   </div>
-                  <span className="rounded-lg bg-indigo-100/70 px-2.5 py-1 text-xs font-black text-indigo-700 transition-colors group-hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:group-hover:bg-indigo-500/20">
-                    {link.clicks.toLocaleString("en-US")}
+                  <span className="rounded-lg bg-indigo-100/70 px-2.5 py-1 text-xs font-black text-indigo-700 transition-colors group-hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:group-hover:bg-indigo-500/20 flex items-center gap-1">
+                    {isFreePlan || timeframe === "today" ? (
+                      <>
+                        <span>{(link.todayClicks || 0).toLocaleString("en-US")}</span>
+                        <span className="text-[10px] font-medium opacity-70">
+                          {language === "ar" ? "اليوم" : "today"}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        <span>{link.clicks.toLocaleString("en-US")}</span>
+                        {(link.todayClicks || 0) > 0 && (
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            (+{link.todayClicks} {language === "ar" ? "اليوم" : "today"})
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
@@ -682,34 +1040,73 @@ export default function HomePage({
         </div>
       )}
 
-      {canViewAdvancedAnalytics && topCountries.length > 0 && (
-        <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:shadow-indigo-500/5 dark:border-slate-800/80 dark:bg-slate-900/50">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-black text-slate-800 dark:text-white">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
-              <MapPin className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-            </span>
-            {t("topCountries")}
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {topCountries.map(([countryCode, visits]) => (
-              <div
-                key={countryCode}
-                className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3 transition-all hover:bg-white dark:border-slate-800/50 dark:bg-slate-900/30 dark:hover:bg-slate-900/80"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white shadow-xs text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                    {countryCode}
-                  </div>
-                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                    {countryCode === "Unknown" ? t("unknown2") : countryCode}
-                  </p>
-                </div>
-                <span className="rounded-lg bg-indigo-100/70 px-2.5 py-1 text-xs font-black text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">
-                  {visits.toLocaleString("en-US")}
-                </span>
-              </div>
-            ))}
+      {isFeatureEnabled("analytics") && (
+        <div className="relative rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:shadow-indigo-500/5 dark:border-slate-800/80 dark:bg-slate-900/50 overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 dark:text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-500/10">
+                <MapPin className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              </span>
+              {t("topCountries")}
+            </h2>
+            {isFreePlan && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                <Lock className="w-3 h-3" />
+                {language === "ar" ? "باقة برو" : "Pro Plan"}
+              </span>
+            )}
           </div>
+
+          {isFreePlan ? (
+            <div className="relative py-6 px-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/60 text-center">
+              <div className="max-w-md mx-auto space-y-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto">
+                  <Lock className="w-5 h-5 text-amber-500" />
+                </div>
+                <h3 className="text-sm font-black text-slate-800 dark:text-white">
+                  {language === "ar" ? "توزيع زوارك حسب الدول والمدن" : "Visitor Geolocation Breakdown"}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {language === "ar"
+                    ? "اكتشف من أين تأتي زيارات كارتك حول العالم بدقة مع تحليلات باقة برو."
+                    : "Discover exactly which countries and cities your card visitors come from with Pro analytics."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => triggerUpgradePrompt()}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{language === "ar" ? "ترقية الباقة الآن" : "Upgrade to Pro"}</span>
+                </button>
+              </div>
+            </div>
+          ) : topCountries.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {topCountries.map(([countryCode, visits]) => (
+                <div
+                  key={countryCode}
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3 transition-all hover:bg-white dark:border-slate-800/50 dark:bg-slate-900/30 dark:hover:bg-slate-900/80"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white shadow-xs text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      {countryCode}
+                    </div>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                      {countryCode === "Unknown" ? t("unknown2") : countryCode}
+                    </p>
+                  </div>
+                  <span className="rounded-lg bg-indigo-100/70 px-2.5 py-1 text-xs font-black text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400">
+                    {visits.toLocaleString("en-US")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 text-center py-4">
+              {language === "ar" ? "لا توجد بيانات دول مسجلة حتى الآن." : "No country data recorded yet."}
+            </p>
+          )}
         </div>
       )}
 

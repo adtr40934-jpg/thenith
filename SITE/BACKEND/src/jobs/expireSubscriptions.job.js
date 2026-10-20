@@ -22,15 +22,10 @@ async function expireSubscriptions() {
   return result.modifiedCount;
 }
 
-async function startSubscriptionExpiryJob() {
+function startSubscriptionExpiryJob() {
   const run = async () => {
     try {
-      const expiredCount = await expireSubscriptions();
-      if (expiredCount) {
-        console.log(
-          `[Job:expireSubscriptions] Downgraded ${expiredCount} expired subscriptions to free.`,
-        );
-      }
+      await expireSubscriptions();
     } catch (error) {
     }
   };
@@ -40,8 +35,7 @@ async function startSubscriptionExpiryJob() {
   return () => clearInterval(interval);
 }
 
-
 export default {
   expireSubscriptions,
-  startSubscriptionExpiryJob
+  startSubscriptionExpiryJob,
 };

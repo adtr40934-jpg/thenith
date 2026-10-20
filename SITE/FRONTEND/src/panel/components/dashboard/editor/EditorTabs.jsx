@@ -41,7 +41,7 @@ export default function EditorTabs({ t, language, activeSection, onChangeSection
               }
               onChangeSection(item.id);
             }}
-            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[11px] font-black transition-colors sm:text-xs ${
+            className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[11px] font-black transition-colors sm:text-xs last:col-span-2 sm:last:col-span-1 ${
               active ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-slate-950' : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'
             }`}
           >

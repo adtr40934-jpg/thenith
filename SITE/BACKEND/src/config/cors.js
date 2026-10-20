@@ -29,7 +29,7 @@ export const corsOptions = {
       return callback(null, normalizedOrigin);
     }
 
-    return callback(new Error("Origin not allowed by CORS"));
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

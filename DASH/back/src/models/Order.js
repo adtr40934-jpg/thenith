@@ -10,6 +10,7 @@ const orderItemSchema = new mongoose.Schema(
     name: { type: mongoose.Schema.Types.Mixed, required: true },
     price: { type: Number, required: true },
     quantity: { type: Number, required: true, min: 1 },
+    customDesign: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { _id: false },
 );

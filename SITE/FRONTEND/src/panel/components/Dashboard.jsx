@@ -7,6 +7,7 @@ import {
   Headset,
   Mail,
   ShoppingBag,
+  Sparkles,
   User,
   Wifi,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import PanelCart from "./dashboard/PanelCart.jsx";
 import PanelCheckout from "./dashboard/PanelCheckout.jsx";
 import SupportPage from "./dashboard/SupportPage.jsx";
 import LinkCardPage from "./dashboard/LinkCardPage.jsx";
+import CustomCardPage from "../../pages/store/CustomCardPage.jsx";
 import { checkUsername } from "../services/authApi.js";
 import { useCart } from "../../context/CartContext.jsx";
 import api from "../../api/index.js";
@@ -59,6 +61,7 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
   const initialTab = searchParams.get("tab") || "home";
 
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [selectedCustomProduct, setSelectedCustomProduct] = useState(null);
   const [dragItem, setDragItem] = useState(null);
   const [pendingPayment, setPendingPayment] = useState(null);
   const [cancelingPayment, setCancelingPayment] = useState(false);
@@ -86,7 +89,11 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
       unreadToastShownRef.current = true;
       const msgTitle = language === "ar" ? "لديك رسائل غير مقروءة من الدعم الفني" : "You have unread support messages";
       toast.custom((t) => (
-        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white dark:bg-slate-900 shadow-xl border border-indigo-100 dark:border-indigo-900 rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 relative overflow-hidden`} style={{ marginTop: '65px' }}>
+        <div
+          dir={language === "ar" ? "rtl" : "ltr"}
+          className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-[calc(100vw-32px)] sm:max-w-sm w-full bg-white dark:bg-slate-900 shadow-xl border border-indigo-100 dark:border-indigo-900 rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 relative overflow-hidden`}
+          style={{ marginTop: '65px', marginRight: '16px' }}
+        >
           <div className="absolute top-0 start-0 w-1.5 h-full bg-indigo-500"></div>
           <div className="flex-1 w-0 p-4">
             <div className="flex items-start">
@@ -129,12 +136,14 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
         position: 'top-right',
         style: {
           marginTop: '65px',
-          marginRight: language === "ar" ? '0px' : '30px',
-          marginLeft: language === "ar" ? '30px' : '0px',
+          marginRight: '20px',
+          marginLeft: '0px',
+          maxWidth: 'calc(100vw - 40px)',
           borderRadius: '12px',
           background: '#4f46e5',
           color: '#fff',
           fontSize: '14px',
+          direction: language === "ar" ? "rtl" : "ltr",
         },
       });
       try {
@@ -156,12 +165,14 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
         position: 'top-right',
         style: {
           marginTop: '65px',
-          marginRight: language === "ar" ? '0px' : '30px',
-          marginLeft: language === "ar" ? '30px' : '0px',
+          marginRight: '20px',
+          marginLeft: '0px',
+          maxWidth: 'calc(100vw - 40px)',
           borderRadius: '12px',
           background: '#4f46e5',
           color: '#fff',
           fontSize: '14px',
+          direction: language === "ar" ? "rtl" : "ltr",
         },
       });
       
@@ -265,6 +276,12 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
       feature: "products",
     },
     {
+      id: "custom-card",
+      label: language === "ar" ? "صمّم كارتك" : "Custom Card",
+      icon: Sparkles,
+      feature: "products",
+    },
+    {
       id: "subscriptions",
       label: t("subscriptions"),
       icon: BadgeDollarSign,
@@ -335,7 +352,7 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
   return (
     <div
       dir={language === "ar" ? "rtl" : "ltr"}
-      className="min-h-screen overflow-x-hidden bg-slate-100 pb-28 text-slate-900 dark:bg-[#03070c] dark:text-slate-100 lg:bg-slate-50 lg:pb-10"
+      className="min-h-screen overflow-x-clip bg-slate-100 pb-28 text-slate-900 dark:bg-[#03070c] dark:text-slate-100 lg:bg-slate-50 lg:pb-10"
     >
       <DashboardHeader
         t={t}
@@ -369,7 +386,7 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
         onLogout={onLogout}
       />
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-0 pt-0 sm:gap-4 sm:px-4 sm:pt-3 md:px-8 md:pt-6 lg:grid-cols-12 lg:gap-6">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-3 pt-2.5 pb-28 sm:gap-4 sm:px-4 sm:pt-3 md:px-8 md:pt-6 lg:grid-cols-12 lg:gap-6 lg:pb-12">
         <DashboardNav
           t={t}
           language={language}
@@ -510,6 +527,10 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
                   t={t}
                   personal={dashboard.dashboardData?.owner || {}}
                   onOpenCart={() => setActiveTab("cart")}
+                  onOpenCustomCard={(prod) => {
+                    setSelectedCustomProduct(prod);
+                    setActiveTab("custom-card");
+                  }}
                   onOrder={(order) =>
                     dashboard.updateDashboard((current) => ({
                       ...current,
@@ -521,6 +542,29 @@ export default function Dashboard({ onLogout, onDeleteAccount }) {
                   }
                 />
               </motion.div>
+            )}
+
+            {activeTab === "custom-card" && (
+              <div
+                key="custom-card"
+                className="w-full"
+                style={{ transform: "none" }}
+              >
+                <CustomCardPage
+                  isPanel={true}
+                  preselectedProduct={selectedCustomProduct}
+                  onBack={() => setActiveTab("products")}
+                  onNavigateTab={(tab) => {
+                    if (tab === "cart") {
+                      setActiveTab("cart");
+                    } else if (tab === "products") {
+                      setActiveTab("products");
+                    } else {
+                      setActiveTab(tab);
+                    }
+                  }}
+                />
+              </div>
             )}
 
             {activeTab === "subscriptions" &&

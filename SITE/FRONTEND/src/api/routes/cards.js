@@ -52,6 +52,32 @@ export const cardRoutes = {
 
   deletePhysicalCard: (id) =>
     request(`/cards/physical/${encodeURIComponent(id)}`, { method: "DELETE" }),
+
+  // Smart Physical Cards (Static URL & Claims)
+  resolvePhysicalCard: async (publicId) => {
+    const response = await publicClient.get(`/cards/resolve/${encodeURIComponent(publicId)}`);
+    return response.data;
+  },
+
+  claimPhysicalCard: (publicId, profileId = null) =>
+    request("/cards/claim", {
+      method: "POST",
+      data: { publicId, profileId },
+    }),
+
+  listMyClaimedPhysicalCards: () =>
+    request("/cards/my-cards"),
+
+  reassignPhysicalCardProfile: (cardId, profileId) =>
+    request(`/cards/my-cards/${encodeURIComponent(cardId)}/profile`, {
+      method: "PATCH",
+      data: { profileId },
+    }),
+
+  unlinkPhysicalCard: (cardId) =>
+    request(`/cards/my-cards/${encodeURIComponent(cardId)}`, {
+      method: "DELETE",
+    }),
 };
 
 export default cardRoutes;

@@ -12,9 +12,17 @@ export default function DashboardNav({
   activeTab,
   onChangeTab,
   onLogout,
+  isMobileMenuOpen: propIsMobileMenuOpen,
+  setIsMobileMenuOpen: propSetIsMobileMenuOpen,
 }) {
   const isRtl = language === "ar";
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [internalMobileMenuOpen, setInternalMobileMenuOpen] = useState(false);
+  const isMobileMenuOpen =
+    propIsMobileMenuOpen !== undefined
+      ? propIsMobileMenuOpen
+      : internalMobileMenuOpen;
+  const setIsMobileMenuOpen =
+    propSetIsMobileMenuOpen || setInternalMobileMenuOpen;
 
   // Split items: home, cards, messages go in the main bottom bar
   const mainItemIds = ["home", "cards", "messages"];
@@ -82,7 +90,7 @@ export default function DashboardNav({
       {/* ── Mobile Bottom Bar (Main items + More) ───────────────────────── */}
       <nav
         dir={isRtl ? "rtl" : "ltr"}
-        className="fixed bottom-3 start-3 end-3 z-40 flex rounded-[26px] border border-slate-200 bg-white/95 px-2 py-2 shadow-2xl shadow-slate-950/15 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/95 lg:hidden"
+        className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] start-2.5 end-2.5 sm:start-4 sm:end-4 z-40 flex rounded-[24px] border border-slate-200/90 bg-white/95 px-1 sm:px-2 py-1.5 shadow-xl shadow-slate-950/10 backdrop-blur-md dark:border-slate-800/90 dark:bg-slate-950/95 lg:hidden"
       >
         <div className="flex w-full items-center justify-around gap-1">
           {mainItems.map((item) => {
@@ -222,6 +230,73 @@ export default function DashboardNav({
                     </button>
                   );
                 })}
+
+                {/* ── Settings, Theme, Language & Logout Section ────────── */}
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-3">
+                  <p className="px-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    {isRtl ? "الإعدادات والحساب" : "Settings & Account"}
+                  </p>
+
+                  {/* Theme Switcher: Segmented Control */}
+                  <div className="flex items-center justify-between rounded-xl bg-slate-100 p-1 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (theme === "dark") toggleTheme();
+                      }}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                        theme !== "dark"
+                          ? "bg-white text-amber-600 shadow-xs dark:bg-slate-800 dark:text-amber-400"
+                          : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      <Sun className="h-4 w-4" />
+                      <span>{isRtl ? "نهاري" : "Light"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (theme !== "dark") toggleTheme();
+                      }}
+                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition-all ${
+                        theme === "dark"
+                          ? "bg-slate-950 text-indigo-400 shadow-xs dark:bg-slate-800 dark:text-indigo-400"
+                          : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      <Moon className="h-4 w-4" />
+                      <span>{isRtl ? "ليلي" : "Dark"}</span>
+                    </button>
+                  </div>
+
+                  {/* Language Switcher */}
+                  <button
+                    type="button"
+                    onClick={toggleLanguage}
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <Languages className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      <span>{isRtl ? "لغة الواجهة" : "Language"}</span>
+                    </span>
+                    <span className="rounded-lg bg-indigo-50 px-2 py-0.5 text-[11px] font-black text-indigo-600 border border-indigo-100 dark:border-indigo-900/40 dark:bg-indigo-950/60 dark:text-indigo-400">
+                      {language === "ar" ? "English" : "العربية"}
+                    </span>
+                  </button>
+
+                  {/* Logout Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      if (onLogout) onLogout();
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200/80 bg-rose-50/80 px-4 py-2.5 text-xs font-bold text-rose-600 transition-all hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400 active:scale-98"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>{t("logout") || (isRtl ? "تسجيل الخروج" : "Logout")}</span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

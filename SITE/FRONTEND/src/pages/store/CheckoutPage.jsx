@@ -1,7 +1,7 @@
 import { useGlobalLanguage } from "../../context/GlobalLanguageContext.jsx";
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle, CreditCard, Truck, Phone, Building2 } from "lucide-react";
+import { ArrowRight, CheckCircle, CreditCard, Truck, Phone, Building2, AlertCircle, X, ArrowLeft } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import GlobalLogo from "../../components/GlobalLogo.jsx";
 import {
@@ -38,6 +38,92 @@ export default function CheckoutPage() {
   const [methods, setMethods] = useState([]);
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [walletNumber, setWalletNumber] = useState("");
+  const [pendingPayment, setPendingPayment] = useState(null);
+  const [cancellingPending, setCancellingPending] = useState(false);
+
+  const fetchPending = async () => {
+    if (!isAuthenticated) return;
+    try {
+      const res = await api.payment.getPending();
+      if (res && res.success) {
+        const isCard = (p) => {
+          const tx = p?.transaction || p;
+          if (!tx) return false;
+          if (tx.paymentMethodId === 2) return true;
+          const name = `${tx.paymentMethodName || p?.paymentMethod || ""}`.toLowerCase();
+          return (
+            name.includes("visa") ||
+            name.includes("mastercard") ||
+            name.includes("card") ||
+            name.includes("فيزا") ||
+            name.includes("بطاق")
+          );
+        };
+
+        const activeSubs = (res.subscriptions || []).filter((s) => !isCard(s));
+        const activeOrders = (res.orders || []).filter((o) => !isCard(o));
+
+        if (activeSubs.length > 0) {
+          const sub = activeSubs[0];
+          setPendingPayment({
+            type: "subscription",
+            id: sub._id,
+            intentKey: sub.transaction?.intentKey,
+            amount: sub.transaction?.amount,
+            methodName: sub.transaction?.paymentMethodName,
+            planName: sub.planId?.name?.ar || sub.planId?.name || "Pro",
+          });
+        } else if (activeOrders.length > 0) {
+          const ord = activeOrders[0];
+          setPendingPayment({
+            type: "order",
+            id: ord._id,
+            intentKey: ord.transaction?.intentKey,
+            amount: ord.transaction?.amount || ord.totalAmount,
+            methodName: ord.transaction?.paymentMethodName,
+            orderNumber: ord.orderNumber || ord._id.slice(-6).toUpperCase(),
+          });
+        } else {
+          setPendingPayment(null);
+        }
+      }
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    fetchPending();
+  }, [isAuthenticated]);
+
+  const handleCancelPending = async () => {
+    if (!pendingPayment?.intentKey) return;
+    const confirmCancel = window.confirm(
+      isArabic
+        ? "هل أنت متأكد من إلغاء عملية الدفع السابقة غير المكتملة؟"
+        : "Are you sure you want to cancel the previous incomplete payment?"
+    );
+    if (!confirmCancel) return;
+
+    setCancellingPending(true);
+    try {
+      const res = await api.payment.cancel(pendingPayment.intentKey);
+      if (res.success) {
+        toast.success(
+          isArabic ? "تم إلغاء عملية الدفع السابقة بنجاح" : "Previous payment cancelled"
+        );
+        setPendingPayment(null);
+      } else {
+        toast.error(
+          isArabic ? "حدث خطأ أثناء إلغاء الدفع" : "Failed to cancel payment"
+        );
+      }
+    } catch (err) {
+      toast.error(
+        isArabic ? "حدث خطأ أثناء إلغاء الدفع" : "Failed to cancel payment"
+      );
+    } finally {
+      setCancellingPending(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -135,6 +221,14 @@ export default function CheckoutPage() {
 
   const handleCheckout = async (e) => {
     e.preventDefault();
+    if (pendingPayment) {
+      toast.error(
+        isArabic
+          ? "لديك عملية دفع قيد الانتظار (فوري / محفظة إلكترونية). يجب إكمال الدفع أو إلغاء العملية السابقة أولاً."
+          : "You have a pending payment. Please complete or cancel it before placing a new order."
+      );
+      return;
+    }
     setLoading(true);
 
     const formData = new FormData(e.target);
@@ -156,6 +250,8 @@ export default function CheckoutPage() {
         items: cart.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
+          customDesign: item.customDesign || null,
+          cartItemId: item.cartItemId || item.id,
         })),
         customer: {
           name: `${firstName} ${lastName}`.trim(),
@@ -169,6 +265,9 @@ export default function CheckoutPage() {
       });
 
       if (result?.orderId) {
+        try {
+          localStorage.removeItem("thenith_custom_card_studio_state_v2");
+        } catch (e) {}
         if (paymentMethod === "cash_on_delivery") {
           clearCart();
           setIsSuccess(true);
@@ -251,9 +350,63 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500/30">
       <main className="max-w-[1200px] mx-auto px-6 py-20">
-        <h1 className="text-3xl font-bold mb-12 text-slate-900">
+        <h1 className="text-3xl font-bold mb-8 text-slate-900">
           {t("store.completeOrder")}
         </h1>
+
+        {/* Pending Payment Blocking Banner */}
+        {pendingPayment && (
+          <div className="mb-8 p-5 sm:p-6 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-950 dark:text-amber-100 shadow-sm" dir={isArabic ? "rtl" : "ltr"}>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl mt-0.5">
+                  <AlertCircle className="w-6 h-6 shrink-0" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg text-amber-900 dark:text-amber-200">
+                    {isArabic
+                      ? "تنبيه: لديك عملية دفع قيد الانتظار (فوري / محفظة إلكترونية)"
+                      : "Notice: You have a pending payment (Fawry / Mobile Wallet)"}
+                  </h3>
+                  <p className="text-sm text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                    {isArabic
+                      ? `لديك طلب ${pendingPayment.type === "subscription" ? "اشتراك" : "متجر"} سابق بمبلغ ${formatMoney(pendingPayment.amount)} لم يكتمل سداده بعد. لا يمكنك إتمام أي عملية شراء جديدة حتى تقوم بإكمال الدفع أو إلغاء العملية السابقة.`
+                      : `You have an incomplete pending ${pendingPayment.type} payment (${formatMoney(pendingPayment.amount)}). You cannot start any new purchase until you complete or cancel the pending payment.`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex w-full md:w-auto items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCancelPending}
+                  disabled={cancellingPending}
+                  className="flex-1 md:flex-none px-4 py-3 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-bold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  <span>{cancellingPending ? (isArabic ? "جاري الإلغاء..." : "Cancelling...") : (isArabic ? "إلغاء العملية السابقة" : "Cancel Pending")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const params = new URLSearchParams({
+                      type: pendingPayment.type,
+                      id: pendingPayment.id,
+                      intentKey: pendingPayment.intentKey || "",
+                    });
+                    navigate(`/payment?${params.toString()}`);
+                  }}
+                  className="flex-1 md:flex-none px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm shadow-md transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>{isArabic ? "استكمال الدفع" : "Complete Payment"}</span>
+                  {isArabic ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <form
             key={user?._id || "guest"}
@@ -452,10 +605,21 @@ export default function CheckoutPage() {
               </label>
             </div>
 
+            {pendingPayment && (
+              <div className="mt-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  {isArabic
+                    ? "لا يمكن إتمام الطلب لأن لديك عملية دفع سابقة قيد الانتظار. يرجى استكمالها أو إلغاؤها أولاً."
+                    : "Cannot place order while you have a pending payment. Please complete or cancel it first."}
+                </span>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={loading || (paymentMethod === "online" && (!selectedMethod || (isWalletMethod(selectedMethod) && !isWalletValid)))}
-              className="w-full mt-8 bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-md hover:shadow-lg text-lg flex justify-center items-center gap-2"
+              disabled={loading || Boolean(pendingPayment) || (paymentMethod === "online" && (!selectedMethod || (isWalletMethod(selectedMethod) && !isWalletValid)))}
+              className="w-full mt-6 bg-slate-900 hover:bg-indigo-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-md hover:shadow-lg text-lg flex justify-center items-center gap-2"
             >
               {loading ? (
                 "جاري إتمام الطلب..."

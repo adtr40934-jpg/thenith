@@ -45,7 +45,7 @@ const { adminLogin,
   getAuditLogs,
   getAuditStats,
   getFilteredUsers,
- } = _adminController9802;
+} = _adminController9802;
 import notificationsController from "../controller/notificationsController.js";
 import _shippingController from "../controller/shippingController.js";
 const {
@@ -56,9 +56,11 @@ const {
   bulkUpdateShippingCost,
 } = _shippingController;
 import _rateLimit5219 from "../middleware/rateLimit.js";
-const { adminLoginRateLimit  } = _rateLimit5219;
+const { adminLoginRateLimit } = _rateLimit5219;
 import _admin5886 from "../middleware/admin.js";
-const { requireAdminToken  } = _admin5886;
+const { requireAdminToken } = _admin5886;
+import cardManagementController from "../controller/cardManagementController.js";
+import PhysicalCard from "../models/PhysicalCard.js";
 
 const router = Router();
 
@@ -84,10 +86,88 @@ router.patch("/users/:id/plan", changeUserPlan);
 router.delete("/users/:id", deleteUser);
 router.get("/users/:id/cards", getUserCards);
 
-// Cards
-router.get("/cards/:id", getCard);
-router.patch("/cards/:id", updateCard);
-router.delete("/cards/:id", deleteCard);
+// ── Smart Physical Cards Management ──────────────────────────────────────────
+router.get("/cards", cardManagementController.getCards);
+router.post("/cards", cardManagementController.createCard);
+router.post("/cards/bulk", cardManagementController.createBulkCards);
+router.get("/cards/stats", cardManagementController.getCardStats);
+router.patch("/cards/:id/status", cardManagementController.updateCardStatus);
+router.get("/cards/:id/qr", cardManagementController.getCardQr);
+router.get("/cards/:id/logs", cardManagementController.getCardLogs);
+router.post("/cards/:id/nfc/provision", cardManagementController.startNfcProvision);
+router.post("/cards/:id/nfc/verify", cardManagementController.verifyNfcProvision);
+router.post("/cards/:id/nfc/simulate-test", cardManagementController.simulateNfcTest);
+
+// Card details resolver (supports Physical Card or fallback to Digital Profile Card)
+router.get("/cards/:id", async (req, res, next) => {
+  try {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(req.params.id);
+    const query = [{ cardId: req.params.id.toUpperCase() }, { publicId: req.params.id }];
+    if (isObjectId) query.unshift({ _id: req.params.id });
+
+    const isPhysical = await PhysicalCard.findOne({ $or: query });
+    if (isPhysical) {
+      return cardManagementController.getCardDetails(req, res, next);
+    }
+    return getCard(req, res, next);
+  } catch (err) {
+    return getCard(req, res, next);
+  }
+});
+router.patch("/cards/:id", async (req, res, next) => {
+  try {
+    const isPhysical = await PhysicalCard.exists({
+      $or: [
+        { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null },
+        { cardId: req.params.id.toUpperCase() },
+        { publicId: req.params.id },
+      ],
+    });
+    if (isPhysical) {
+      return cardManagementController.updateCardDetails(req, res, next);
+    }
+    return updateCard(req, res, next);
+  } catch (err) {
+    return updateCard(req, res, next);
+  }
+});
+router.delete("/cards/:id", async (req, res, next) => {
+  try {
+    const isObjectId = /^[0-9a-fA-F]{24}$/.test(req.params.id);
+    const query = [{ cardId: req.params.id.toUpperCase() }, { publicId: req.params.id }];
+    if (isObjectId) query.unshift({ _id: req.params.id });
+
+    const isPhysical = await PhysicalCard.findOne({ $or: query });
+    if (isPhysical) {
+      return cardManagementController.deleteCard(req, res, next);
+    }
+    return deleteCard(req, res, next);
+  } catch (err) {
+    return deleteCard(req, res, next);
+  }
+});
+router.post("/cards/:id/unlink", cardManagementController.unlinkCard);
+
+// Dedicated aliases
+router.get("/physical-cards", cardManagementController.getCards);
+router.get("/physical-cards/stats", cardManagementController.getCardStats);
+router.post("/physical-cards", cardManagementController.createCard);
+router.post("/physical-cards/bulk", cardManagementController.createBulkCards);
+router.get("/physical-cards/:id", cardManagementController.getCardDetails);
+router.patch("/physical-cards/:id", cardManagementController.updateCardDetails);
+router.patch("/physical-cards/:id/status", cardManagementController.updateCardStatus);
+router.post("/physical-cards/:id/unlink", cardManagementController.unlinkCard);
+router.delete("/physical-cards/:id", cardManagementController.deleteCard);
+router.get("/physical-cards/:id/qr", cardManagementController.getCardQr);
+router.get("/physical-cards/:id/logs", cardManagementController.getCardLogs);
+router.post("/physical-cards/:id/nfc/provision", cardManagementController.startNfcProvision);
+router.post("/physical-cards/:id/nfc/verify", cardManagementController.verifyNfcProvision);
+router.post("/physical-cards/:id/nfc/simulate-test", cardManagementController.simulateNfcTest);
+
+// ── Card Batches & Inventory ─────────────────────────────────────────────────
+router.get("/card-batches", cardManagementController.getCardBatches);
+router.post("/card-batches", cardManagementController.createCardBatch);
+router.get("/card-batches/:id", cardManagementController.getCardBatchDetails);
 
 // Upload
 router.post("/upload", adminUpload);

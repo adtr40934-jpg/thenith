@@ -18,6 +18,9 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!isAuthenticated) {
+    if (location.pathname.startsWith("/payment")) {
+      return <Navigate to="/" replace />;
+    }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

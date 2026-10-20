@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   ShoppingBag,
   ShieldCheck,
+  Sparkles,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -19,7 +20,7 @@ import {
 import { useCart } from "../../../context/CartContext.jsx";
 import ErrorNotice from "../../../components/ErrorNotice.jsx";
 
-export default function ProductsPage({ t, personal, onOrder, onOpenCart }) {
+export default function ProductsPage({ t, personal, onOrder, onOpenCart, onOpenCustomCard }) {
   const isArabic = t("home") === "الرئيسية";
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -92,10 +93,10 @@ export default function ProductsPage({ t, personal, onOrder, onOpenCart }) {
 
   return (
     <section className="space-y-6 pb-20">
-      <div className="relative overflow-hidden rounded-[32px] bg-slate-900 p-8 shadow-2xl dark:bg-slate-950 sm:p-12">
-        <div className="relative z-10 flex flex-col justify-between gap-8 sm:flex-row sm:items-center">
+      <div className="relative overflow-hidden rounded-3xl sm:rounded-[32px] bg-slate-900 p-5 sm:p-8 md:p-12 shadow-2xl dark:bg-slate-950">
+        <div className="relative z-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div className="max-w-xl">
-            <h1 className="mt-2 text-3xl font-black text-white sm:text-5xl leading-tight">
+            <h1 className="mt-1 text-2xl sm:text-4xl md:text-5xl font-black text-white leading-tight">
               {t("thenithProducts")}
             </h1>
           </div>
@@ -105,7 +106,7 @@ export default function ProductsPage({ t, personal, onOrder, onOpenCart }) {
               onClick={onOpenCart}
               aria-label={`${isArabic ? "السلة" : "Cart"}: ${totalItems}`}
               title={isArabic ? "السلة" : "Cart"}
-              className="group relative flex min-h-14 items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.07] py-2.5 ps-2.5 pe-4 text-white shadow-lg shadow-black/10 backdrop-blur-sm transition-all hover:border-indigo-300/50 hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+              className="group relative flex min-h-12 sm:min-h-14 items-center gap-2.5 sm:gap-3 rounded-2xl border border-white/15 bg-white/[0.07] py-2 ps-2 pe-3.5 sm:py-2.5 sm:ps-2.5 sm:pe-4 text-white shadow-lg shadow-black/10 backdrop-blur-sm transition-all hover:border-indigo-300/50 hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
             >
               <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500 text-white shadow-md shadow-indigo-950/25 transition-colors group-hover:bg-indigo-400">
                 <ShoppingCart className="h-5 w-5" />
@@ -165,46 +166,64 @@ export default function ProductsPage({ t, personal, onOrder, onOpenCart }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredProducts.map((product) => (
-            <motion.button
-              layout
-              key={product.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => {
-                setSelectedProduct(product);
-                setActiveImageIndex(0);
-              }}
-              className="group cursor-pointer text-start"
-            >
-              <div className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-[#f0f0f0] transition-all duration-300 dark:bg-slate-900/60">
-                {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={
-                      typeof product.name === "object"
-                        ? product.name?.ar || product.name?.en
-                        : product.name
-                    }
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <Package className="relative z-10 h-24 w-24 text-slate-800 dark:text-slate-300" />
-                )}
-              </div>
+          {filteredProducts.map((product) => {
+            const isCustom = Boolean(product.isCustomizable);
 
-              <div className="px-1">
-                <h3 className="line-clamp-1 text-[13px] font-bold text-slate-900 dark:text-white">
-                  {typeof product.name === "object"
-                    ? product.name?.ar || product.name?.en
-                    : product.name}
-                </h3>
-                <div className="mt-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
-                  {formatMoney(product.price, product.currency)}
+            return (
+              <motion.button
+                layout
+                key={product.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => {
+                  if (isCustom) {
+                    if (onOpenCustomCard) {
+                      onOpenCustomCard(product);
+                      return;
+                    }
+                    window.location.href = `/custom-card?productId=${product.id}`;
+                    return;
+                  }
+                  setSelectedProduct(product);
+                  setActiveImageIndex(0);
+                }}
+                className="group cursor-pointer text-start relative"
+              >
+                <div className="relative mb-4 flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-[#f0f0f0] transition-all duration-300 dark:bg-slate-900/60">
+                  {isCustom && (
+                    <div className="absolute top-2.5 start-2.5 z-10 px-2.5 py-1 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 shadow flex items-center gap-1 border border-white/50">
+                      <Sparkles className="w-3 h-3 text-amber-900 animate-pulse" />
+                      <span>{isArabic ? "تصميم مخصص" : "Custom Card"}</span>
+                    </div>
+                  )}
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={
+                        typeof product.name === "object"
+                          ? product.name?.ar || product.name?.en
+                          : product.name
+                      }
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <Package className="relative z-10 h-24 w-24 text-slate-800 dark:text-slate-300" />
+                  )}
                 </div>
-              </div>
-            </motion.button>
-          ))}
+
+                <div className="px-1">
+                  <h3 className="line-clamp-1 text-[13px] font-bold text-slate-900 dark:text-white">
+                    {typeof product.name === "object"
+                      ? product.name?.ar || product.name?.en
+                      : product.name}
+                  </h3>
+                  <div className="mt-1 text-[12px] font-medium text-slate-500 dark:text-slate-400">
+                    {formatMoney(product.price, product.currency)}
+                  </div>
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
       )}
 
@@ -309,20 +328,40 @@ export default function ProductsPage({ t, personal, onOrder, onOpenCart }) {
                       )}
                     </p>
                   </div>
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={selectedProduct.quantity <= 0}
-                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
-                  >
-                    <ShoppingBag className="h-4 w-4" />
-                    {selectedProduct.quantity > 0
-                      ? isArabic
-                        ? "أضف للسلة"
-                        : "Add to Cart"
-                      : isArabic
-                        ? "غير متوفر"
-                        : "Unavailable"}
-                  </button>
+                  {(() => {
+                    const isSelectedCustom = Boolean(selectedProduct.isCustomizable);
+
+                    if (isSelectedCustom) {
+                      return (
+                        <button
+                          onClick={() => {
+                            window.location.href = `/custom-card?productId=${selectedProduct.id}`;
+                          }}
+                          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-indigo-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-amber-500/20 transition-all hover:scale-105 active:scale-95"
+                        >
+                          <Sparkles className="h-4 w-4 text-amber-200 animate-pulse" />
+                          <span>{isArabic ? "صمّم كارتك الآن" : "Customize Your Card"}</span>
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        onClick={handleAddToCart}
+                        disabled={selectedProduct.quantity <= 0}
+                        className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                      >
+                        <ShoppingBag className="h-4 w-4" />
+                        {selectedProduct.quantity > 0
+                          ? isArabic
+                            ? "أضف للسلة"
+                            : "Add to Cart"
+                          : isArabic
+                            ? "غير متوفر"
+                            : "Unavailable"}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             </motion.div>

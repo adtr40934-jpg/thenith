@@ -31,16 +31,77 @@ export default function PendingPaymentAlert() {
     try {
       const data = await api.payment.getPending();
       if (data.success) {
-        const newSubs = data.subscriptions || [];
-        const newOrders = data.orders || [];
+        const isCard = (p) => {
+          const tx = p?.transaction || p;
+          if (!tx) return false;
+          if (tx.paymentMethodId === 2) return true;
+          const name = `${tx.paymentMethodName || p?.paymentMethod || ""}`.toLowerCase();
+          return (
+            name.includes("visa") ||
+            name.includes("mastercard") ||
+            name.includes("card") ||
+            name.includes("فيزا") ||
+            name.includes("بطاق")
+          );
+        };
+
+        const newSubs = (data.subscriptions || []).filter((s) => !isCard(s));
+        const newOrders = (data.orders || []).filter((o) => !isCard(o));
 
         // If this is a background poll and a payment was resolved (array length decreased)
         if (isPolling) {
-          if (
-            newSubs.length < pendingRef.current.subscriptions.length ||
-            newOrders.length < pendingRef.current.orders.length
-          ) {
-            window.location.reload();
+          const prevSubs = pendingRef.current.subscriptions;
+          const prevOrders = pendingRef.current.orders;
+
+          if (newSubs.length < prevSubs.length) {
+            const resolvedSub =
+              prevSubs.find(
+                (oldSub) =>
+                  !newSubs.some(
+                    (s) =>
+                      (s._id || s.transaction?.intentKey) ===
+                      (oldSub._id || oldSub.transaction?.intentKey),
+                  ),
+              ) || prevSubs[0];
+
+            const targetId = resolvedSub?._id || "";
+            const targetIntent =
+              resolvedSub?.transaction?.intentKey || targetId;
+
+            const newState = { subscriptions: newSubs, orders: newOrders };
+            pendingRef.current = newState;
+            setPending(newState);
+
+            navigate(
+              `/payment/success?type=subscription&id=${targetId}&intentKey=${targetIntent}`,
+              { replace: true },
+            );
+            return;
+          }
+
+          if (newOrders.length < prevOrders.length) {
+            const resolvedOrder =
+              prevOrders.find(
+                (oldOrd) =>
+                  !newOrders.some(
+                    (o) =>
+                      (o._id || o.transaction?.intentKey) ===
+                      (oldOrd._id || oldOrd.transaction?.intentKey),
+                  ),
+              ) || prevOrders[0];
+
+            const targetId = resolvedOrder?._id || "";
+            const targetIntent =
+              resolvedOrder?.transaction?.intentKey || targetId;
+
+            const newState = { subscriptions: newSubs, orders: newOrders };
+            pendingRef.current = newState;
+            setPending(newState);
+
+            navigate(
+              `/payment/success?type=order&id=${targetId}&intentKey=${targetIntent}`,
+              { replace: true },
+            );
             return;
           }
         }
@@ -57,13 +118,6 @@ export default function PendingPaymentAlert() {
 
   useEffect(() => {
     fetchPending();
-
-    // Auto-poll every 10 seconds
-    const intervalId = setInterval(() => {
-      fetchPending(true);
-    }, 10000);
-
-    return () => clearInterval(intervalId);
   }, []);
 
   const handleRefresh = async () => {
@@ -206,12 +260,13 @@ export default function PendingPaymentAlert() {
                       planId: sub.planId?._id || sub.planId,
                       id: sub._id,
                       intentKey: sub.transaction?.intentKey,
+                      billingPeriod: sub.billingPeriod || sub.transaction?.paymentData?.targetBillingPeriod || "monthly",
                     });
                     window.location.href = `/payment?${params.toString()}`;
                   }}
                   className="w-1/2 sm:w-auto bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
                 >
-                  {isArabic ? "استكمال الدفع" : "Check Status"}
+                  {isArabic ? "استكمال الدفع" : "Complete Payment"}
                   {isArabic ? (
                     <ArrowLeft className="w-4 h-4" />
                   ) : (

@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -287,3 +286,33 @@ body.loading-screen-active .global-support-widget {
   background: linear-gradient(180deg, var(--pt-btn-primary-bg) 0%, var(--pt-btn-secondary-bg) 60%, transparent 100%) !important;
   opacity: 0.25 !important;
 }
+
+/* ── 3D Card Flip Transforms & Utilities ── */
+.perspective-1000 {
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+  -webkit-transform: rotateY(180deg);
+}
+
+/* ── Custom Card Studio: Mobile Full-Height Sticky Preview ── */
+@media (max-width: 1023.98px) {
+  .mobile-card-contents {
+    display: contents !important;
+  }
+}
+
+

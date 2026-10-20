@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { adminFetch } from "../services/adminApi.js";
 import { io } from "socket.io-client";
+import { getBackendUrl } from "../api/client.js";
 
 export default function SupportDesk() {
   const [tickets, setTickets] = useState([]);
@@ -44,7 +45,7 @@ export default function SupportDesk() {
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token");
     const newSocket = io(
-      import.meta.env.VITE_API_BASE_URL.replace("/api", ""),
+      getBackendUrl(),
       {
         auth: { adminToken },
       },
@@ -96,7 +97,7 @@ export default function SupportDesk() {
         audioEl.volume = 0.8;
         audioEl
           .play()
-          .catch((e) => );
+          .catch((e) => {});
 
         if ("Notification" in window && Notification.permission === "granted") {
           if (document.hidden || !isCurrentChat) {

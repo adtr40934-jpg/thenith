@@ -13,7 +13,7 @@
 1. [المصادقة وتسجيل دخول الأدمن](#1-المصادقة-وتسجيل-دخول-الأدمن)
 2. [إحصائيات النظام والاشتراكات](#2-إحصائيات-النظام-والاشتراكات)
 3. [إدارة المستخدمين (Users Management)](#3-إدارة-المستخدمين-users-management)
-4. [إدارة البطاقات الرقمية (Cards Management)](#4-إدارة-البطاقات-الرقمية-cards-management)
+4. [إدارة الكروت الذكية وبرمجة NFC (Smart Physical Cards & NFC Provisioning)](#4-إدارة-الكروت-الذكية-وبرمجة-nfc-smart-physical-cards--nfc-provisioning)
 5. [إدارة المتجر والمنتجات والطلبات (Store & Orders)](#5-إدارة-المتجر-والمنتجات-والطلبات-store--orders)
 6. [إدارة الخطط والكوبونات (Plans & Coupons)](#6-إدارة-الخطط-والكوبونات-plans--coupons)
 7. [إعدادات النظام وصفحة الهبوط (Settings)](#7-إعدادات-النظام-وصفحة-الهبوط-settings)
@@ -209,27 +209,188 @@
 
 ---
 
-### 4. إدارة البطاقات الرقمية (Cards Management)
+### 4. إدارة الكروت الذكية وبرمجة NFC (Smart Physical Cards & NFC Provisioning)
 
-#### `GET /api/admin/cards/:id`
-
-- **الوصف**: جلب تفاصيل بطاقة محددة بالمعرف (للمعاينة الإدارية أو التعديل).
-
-#### `PATCH /api/admin/cards/:id`
-
-- **الوصف**: تعديل بيانات أي بطاقة (العنوان، النبذة الشخصية، الروابط، الثيم، التصميم).
-- **Body**:
+#### `GET /api/admin/cards`
+- **الوصف**: استرجاع قائمة الكروت الذكية (Physical Cards) مع دعم الفلترة، البحث، والترقيم، وحالة حماية NFC.
+- **Query Parameters**:
+  - `page` (افتراضي: 1)
+  - `limit` (افتراضي: 10، الحد الأقصى: 100)
+  - `search` (بحث في `cardId` أو `publicId`)
+  - `status` (`unclaimed`, `claimed`, `disabled`)
+  - `color` (`black`, `white`, `gold`, `silver`, `custom`)
+  - `cardType` (`standard`, `metal`, `bamboo`, `pvc`, `matte`)
+  - `distributionType` (`sale`, `gift`, `sample`, `corporate`)
+  - `nfcProtectionStatus` (`pending_setup`, `locked`, `unlocked`, `error`)
+  - `batchId` (فلترة حسب معرف الدفعة)
+- **Response (200 OK)**:
   ```json
   {
-    "title": "New Title",
-    "bio": "Updated Bio",
-    "theme": "dark"
+    "success": true,
+    "data": [
+      {
+        "_id": "670f...",
+        "cardId": "THN-A1B2C3",
+        "publicId": "7k9x2m1q",
+        "cardPassword": "••••••",
+        "targetUrl": "https://thenith.com/c/7k9x2m1q",
+        "status": "unclaimed",
+        "cardType": "standard",
+        "color": "black",
+        "nfcProtectionStatus": "pending_setup",
+        "nfcChipType": "NTAG215",
+        "isReadyForDistribution": false
+      }
+    ],
+    "pagination": { "page": 1, "limit": 10, "total": 45, "totalPages": 5 }
   }
   ```
 
-#### `DELETE /api/admin/cards/:id`
+#### `POST /api/admin/cards`
+- **الوصف**: إنشاء كارت ذكي فيزيائي جديد فردي مع توليد معرّف وكلمة مرور فريدة (6 خانات Hex).
+- **Body**:
+  ```json
+  {
+    "cardType": "standard",
+    "color": "black",
+    "distributionType": "sale",
+    "nfcChipType": "NTAG215",
+    "targetUrl": "https://thenith.com/c/custom-id",
+    "cardPassword": "A4B92C",
+    "batchId": "670e..."
+  }
+  ```
+- **Response (201 Created)**:
+  ```json
+  {
+    "success": true,
+    "card": {
+      "_id": "670f...",
+      "cardId": "THN-D9E8F7",
+      "publicId": "p2n5r8t1",
+      "cardPassword": "A4B92C",
+      "status": "unclaimed",
+      "nfcChipType": "NTAG215",
+      "nfcProtectionStatus": "pending_setup"
+    }
+  }
+  ```
 
-- **الوصف**: حذف بطاقة محددة نهائياً من قاعدة البيانات.
+#### `POST /api/admin/cards/bulk`
+- **الوصف**: توليد دفعة كروت ذكية متعددة دفعة واحدة مع أرقام تسلسلية وبيانات تشفير فريدة.
+- **Body**:
+  ```json
+  {
+    "quantity": 50,
+    "cardType": "metal",
+    "color": "black",
+    "distributionType": "sale",
+    "nfcChipType": "NTAG215",
+    "batchName": "Batch-October-2026"
+  }
+  ```
+
+#### `GET /api/admin/cards/stats`
+- **الوصف**: إحصائيات شاملة للكروت والمخزون وحالات حماية NFC (تجهيز، مقفول، بانتظار الربط، أخطاء).
+- **Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "stats": {
+      "totalCards": 250,
+      "unclaimedCards": 180,
+      "claimedCards": 65,
+      "disabledCards": 5,
+      "readyForDistribution": 140,
+      "nfcSetupPending": 40,
+      "nfcErrors": 0,
+      "nfcLocked": 140
+    }
+  }
+  ```
+
+#### `GET /api/admin/cards/:id`
+- **الوصف**: جلب التفاصيل الشاملة للكارت الفيزيائي بواسطة `_id` أو `cardId` أو `publicId`.
+
+#### `PATCH /api/admin/cards/:id`
+- **الوصف**: تعديل خصائص الكارت الفيزيائي أو الرابط المستهدف `targetUrl`.
+
+#### `PATCH /api/admin/cards/:id/status`
+- **الوصف**: تغيير حالة الكارت (`unclaimed`, `claimed`, `disabled`).
+
+#### `POST /api/admin/cards/:id/unlink`
+- **الوصف**: إلغاء ربط الكارت الفيزيائي بالمستخدم والبروفايل وإعادته متاحاً للربط مجدداً (`unclaimed`).
+
+#### `DELETE /api/admin/cards/:id`
+- **الوصف**: حذف الكارت الذكي نهائياً وسجل أمان الـ NFC وسجلات النشاط المرتبطة به.
+
+#### `GET /api/admin/cards/:id/qr`
+- **الوصف**: استخراج رمز QR للكارت بصيغة SVG أو Data URL PNG.
+- **Query Parameters**: `format` (`svg`, `png`), `download` (`true`, `false`)
+
+#### `GET /api/admin/cards/:id/logs`
+- **الوصف**: استرجاع سجل النشاطات والعمليات الخاصة بهذا الكارت (إنشاء، برمجة، قفل، فحص، إلغاء ربط).
+
+#### `POST /api/admin/cards/:id/nfc/provision`
+- **الوصف**: بدء جلسة برمجة NFC وتوليد خطة التكوين وتوكن الجلسة وكلمة المرور المشفرة.
+- **Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "session": {
+      "sessionToken": "a8f3b9c02d1e...",
+      "expiresAt": "2026-10-15T22:30:00.000Z",
+      "cardId": "THN-A1B2C3",
+      "publicId": "7k9x2m1q",
+      "cardPassword": "A4B92C",
+      "staticUrl": "https://thenith.com/c/7k9x2m1q",
+      "chipType": "NTAG215",
+      "provisioningPlan": {
+        "targetUrl": "https://thenith.com/c/7k9x2m1q",
+        "ndefPayload": { "recordType": "url", "data": "https://thenith.com/c/7k9x2m1q" },
+        "protectionConfiguration": {
+          "method": "NTAG_PASSWORD_AUTH",
+          "auth0Page": "0xE3",
+          "protMode": "WRITE_ONLY_PROTECTED"
+        }
+      }
+    }
+  }
+  ```
+
+#### `POST /api/admin/cards/:id/nfc/verify`
+- **الوصف**: التحقق من اكتمال كتابة الرابط وتفعيل قفل كلمة المرور وتحديث حالة الكارت إلى `locked`.
+- **Body**:
+  ```json
+  {
+    "readUrl": "https://thenith.com/c/7k9x2m1q",
+    "hardwareUid": "04:5A:88:2E:1B:6F",
+    "writeVerified": true,
+    "protectionVerified": true,
+    "password": "A4B92C"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "result": {
+      "valid": true,
+      "hardwareUid": "04:5A:88:2E:1B:6F",
+      "status": "locked",
+      "verifiedAt": "2026-10-15T22:15:30.000Z"
+    }
+  }
+  ```
+
+#### `POST /api/admin/cards/:id/nfc/simulate-test`
+- **الوصف**: محاكاة واختبار دورة حياة برمجة وقفل الكارت برمجياً لاختبار الواجهات والتكامل دون قارئ فيزيائي.
+
+#### `GET /api/admin/card-batches`
+- **الوصف**: استعراض دفعات التصنيع المجمعة وإحصائيات الكروت المربوطة والموزعة بكل دفعة.
+
+#### `POST /api/admin/card-batches`
+- **الوصف**: تسجيل دفعة تصنيع جديدة للكروت في المخزن.
 
 ---
 

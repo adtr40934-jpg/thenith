@@ -28,6 +28,7 @@ const { notifyUser } = _dashboardNotifications1234;
 import _subscriptionService from "../services/subscriptionService.js";
 const { getSubscriptionState } = _subscriptionService;
 import _env from "../config/env.js";
+import { processCustomCardsForOrder } from "../services/customCardOrderService.js";
 const { env } = _env;
 import mailService from "../util/mail.js";
 const { sendSubscriptionEmail, sendOrderEmail } = mailService;
@@ -105,25 +106,43 @@ async function processVerifiedPayment(pTx, txData) {
   const actualAmount = Number(txData.total || txData.amount || txData.invoice_amount || 0);
 
   if (Math.abs(expectedAmount - actualAmount) > 0.1) {
-    
     // Mark as suspicious
     pTx.status = "suspicious_amount";
     pTx.fawaterakLogs.push({
       action: "verify_amount_failed",
       data: txData,
-      note: `Amount mismatch. Expected ${expectedAmount}, got ${actualAmount}`
+      note: `Amount mismatch. Expected ${expectedAmount}, got ${actualAmount}`,
     });
     await pTx.save();
     return { success: false, error: "amount_mismatch" };
   }
 
-  // 3. Mark as paid securely
+  // 3. Mark as paid atomically in MongoDB so only ONE process executes activation
+  const updatedTx = await PaymentTransaction.findOneAndUpdate(
+    { _id: pTx._id, status: { $ne: "paid" } },
+    {
+      $set: {
+        status: "paid",
+        paymentMethodName: txData.payment_method || pTx.paymentMethodName,
+        fawaterakResponse: txData,
+        paidAt: new Date(txData.paid_at || Date.now()),
+      },
+      $push: {
+        fawaterakLogs: { action: "verify_success", data: txData },
+      },
+    },
+    { new: true }
+  );
+
+  if (!updatedTx) {
+    // Already marked as paid by concurrent webhook or verify request
+    return { success: true, alreadyProcessed: true };
+  }
+
   pTx.status = "paid";
-  pTx.paymentMethodName = txData.payment_method;
-  pTx.fawaterakResponse = txData;
-  pTx.paidAt = new Date(txData.paid_at || Date.now());
-  pTx.fawaterakLogs.push({ action: "verify_success", data: txData });
-  await pTx.save();
+  pTx.paymentMethodName = updatedTx.paymentMethodName;
+  pTx.fawaterakResponse = updatedTx.fawaterakResponse;
+  pTx.paidAt = updatedTx.paidAt;
 
   // 4. Activate business logic atomically
   const orderType = txData.pay_load?.order_type || pTx.orderType;
@@ -266,6 +285,7 @@ async function activateOrder(order, txData, pTx) {
     order.fawaterakRef = txData.transaction_history[0].reference;
   }
   await order.save();
+  await processCustomCardsForOrder(order);
 
   try {
     const orderUser = await mongoose.model("User").findById(order.userId);
@@ -407,6 +427,29 @@ export const getPaymentMethods = asyncHandler(async (req, res) => {
   res.json({ success: true, methods: fallbackMethods });
 });
 
+// ── In-Flight Request Deduplication ──────────────────────────────────────────
+// Prevents duplicate concurrent calls to Fawaterak if user double-clicks or server lags
+const activePaymentCreations = new Map();
+
+function runWithPaymentLock(lockKey, task) {
+  if (activePaymentCreations.has(lockKey)) {
+    return activePaymentCreations.get(lockKey);
+  }
+
+  const promise = (async () => {
+    try {
+      return await task();
+    } finally {
+      setTimeout(() => {
+        activePaymentCreations.delete(lockKey);
+      }, 1500);
+    }
+  })();
+
+  activePaymentCreations.set(lockKey, promise);
+  return promise;
+}
+
 // ── POST /api/payment/subscription ───────────────────────────────────────────
 // Body: { planId, billingPeriod, methodId?, walletNumber?, couponCode? }
 
@@ -425,18 +468,109 @@ export const createSubscriptionPayment = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "يجب إضافة رقم هاتف لحسابك من صفحة الملف الشخصي أولاً لتفعيل الاشتراك." });
   }
 
-  // Check if there are any existing pending transactions for subscriptions
+  // Retrieve the existing (default Free) subscription
+  const existingSub = await Subscription.findOne({ userId: user._id });
+  if (!existingSub) {
+    return res.status(404).json({ error: "لا يوجد اشتراك حالي للمستخدم." });
+  }
+
+  // Check if there is an active pending transaction for this user, plan, and method within 3 minutes (Idempotency)
+  const recentSubTx = await PaymentTransaction.findOne({
+    userId: user._id,
+    referenceId: existingSub._id,
+    orderType: "subscription",
+    status: "pending",
+    createdAt: { $gte: new Date(Date.now() - 3 * 60 * 1000) },
+  }).sort({ createdAt: -1 });
+
+  const isSameSubMethod =
+    recentSubTx &&
+    ((methodId && Number(recentSubTx.paymentMethodId) === Number(methodId)) ||
+      (!methodId && !recentSubTx.paymentMethodId));
+
+  const isSamePlan =
+    recentSubTx?.paymentData?.targetPlanId &&
+    String(recentSubTx.paymentData.targetPlanId) === String(planId) &&
+    recentSubTx.paymentData?.targetBillingPeriod === billingPeriod;
+
+  if (
+    recentSubTx &&
+    isSameSubMethod &&
+    isSamePlan &&
+    (recentSubTx.checkoutUrl || recentSubTx.paymentData)
+  ) {
+    return res.json({
+      success: true,
+      intentKey: recentSubTx.intentKey,
+      checkoutUrl: recentSubTx.checkoutUrl || null,
+      paymentData: recentSubTx.paymentData,
+      invoiceInfo: sanitizeFawaterakData(recentSubTx.fawaterakResponse),
+      subscriptionId: existingSub._id,
+      transactionId:
+        recentSubTx.fawaterakResponse?.transaction_id ||
+        recentSubTx.fawaterakResponse?.invoice_id ||
+        recentSubTx.intentKey,
+      orderNumber: null,
+      amount: recentSubTx.amount,
+    });
+  }
+
+  // If user changed plan or payment method, cancel the previous pending transaction
+  if (recentSubTx && (!isSameSubMethod || !isSamePlan)) {
+    recentSubTx.status = "cancelled";
+    recentSubTx.fawaterakLogs.push({
+      action: "cancelled_by_user_switch",
+      date: new Date(),
+    });
+    await recentSubTx.save();
+  }
+
+  // Automatically cancel any uncompleted card transactions (cards finish or terminate - no pending/resuming)
+  await PaymentTransaction.updateMany(
+    {
+      userId: user._id,
+      status: "pending",
+      $or: [
+        { paymentMethodId: 2 },
+        { paymentMethodName: { $regex: /visa|mastercard|card|فيزا|ماستر|بطاقة/i } },
+      ],
+    },
+    { $set: { status: "cancelled" } }
+  );
+
+  // Check if there are any existing pending Fawry or Wallet transactions (store or subscription)
   const pendingTxs = await PaymentTransaction.find({
     userId: user._id,
     status: "pending",
-    orderType: "subscription"
+    $or: [
+      { paymentMethodId: { $in: [3, 4] } },
+      { paymentMethodName: { $regex: /fawry|فوري|wallet|meeza|محفظ|كاش/i } },
+      { "paymentData.fawryCode": { $exists: true, $ne: null } },
+      { "paymentData.mobileWalletNumber": { $exists: true, $ne: null } },
+      { "paymentData.customerMobile": { $exists: true, $ne: null } },
+    ],
+    createdAt: { $gte: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+  }).sort({ createdAt: -1 });
+
+  // If there's an existing pending transaction that is NOT this exact subscription attempt
+  const blockingPendingTx = pendingTxs.find((tx) => {
+    if (
+      tx.orderType === "subscription" &&
+      recentSubTx &&
+      tx._id.equals(recentSubTx._id) &&
+      isSameSubMethod &&
+      isSamePlan
+    ) {
+      return false;
+    }
+    return true;
   });
-  
-  if (pendingTxs.length > 0) {
+
+  if (blockingPendingTx) {
     return res.status(400).json({
-      error: "يوجد عملية دفع لاشتراك قيد الانتظار بالفعل. يرجى إكمالها أو إلغائها من لوحة التحكم قبل بدء عملية جديدة.",
+      error: "لديك عملية دفع قيد الانتظار (فوري / محفظة إلكترونية). يجب إكمال الدفع أو إلغاء العملية السابقة أولاً قبل إجراء أي عملية شراء جديدة.",
       code: "PENDING_PAYMENT_EXISTS",
-      pendingTx: pendingTxs[0]
+      pendingTx: blockingPendingTx,
     });
   }
 
@@ -504,76 +638,134 @@ export const createSubscriptionPayment = asyncHandler(async (req, res) => {
 
   const finalAmount = Math.max(price - discount, 1); // Minimum 1 EGP
 
-  // Retrieve the existing (default Free) subscription
-  const existingSub = await Subscription.findOne({ userId: user._id });
-  if (!existingSub) {
-    return res.status(404).json({ error: "لا يوجد اشتراك حالي للمستخدم." });
-  }
-
   // Calculate new expiration date
   const expiresAt = new Date();
   expiresAt.setMonth(
     expiresAt.getMonth() + (billingPeriod === "yearly" ? 12 : 1),
   );
 
-  // Create Fawaterak transaction (do NOT modify the existing subscription yet)
-  const urls = getRedirectionUrls(
-    req,
-    `?type=subscription&id=${existingSub._id}`,
-  );
-  const txData = await fawaterak.createTransaction({
-    amount: finalAmount,
-    methodId: methodId || null,
-    walletNumber: walletNumber || null,
-    customer: buildCustomer(user, { phone: walletNumber }),
-    orderId: existingSub._id,
-    orderType: "subscription",
-    ...urls,
-  });
+  const lockKey = `sub_${user._id}_${plan._id}_${billingPeriod}_${methodId || "default"}`;
+  const responseData = await runWithPaymentLock(lockKey, async () => {
+    // Re-check inside lock
+    const txJustCreated = await PaymentTransaction.findOne({
+      userId: user._id,
+      referenceId: existingSub._id,
+      orderType: "subscription",
+      status: "pending",
+      createdAt: { $gte: new Date(Date.now() - 3 * 60 * 1000) },
+    }).sort({ createdAt: -1 });
 
-  // Create detailed transaction record containing target plan
-  await PaymentTransaction.create({
-    userId: user._id,
-    referenceId: existingSub._id,
-    orderType: "subscription",
-    intentKey: txData.intent_key,
-    amount: finalAmount,
-    paymentMethodId: methodId || null,
-    checkoutUrl: txData.url || null,
-    paymentData: {
+    const isSameMethodInside =
+      txJustCreated &&
+      ((methodId && Number(txJustCreated.paymentMethodId) === Number(methodId)) ||
+        (!methodId && !txJustCreated.paymentMethodId));
+
+    if (
+      txJustCreated &&
+      isSameMethodInside &&
+      (txJustCreated.checkoutUrl || txJustCreated.paymentData)
+    ) {
+      return {
+        success: true,
+        intentKey: txJustCreated.intentKey,
+        checkoutUrl: txJustCreated.checkoutUrl || null,
+        paymentData: txJustCreated.paymentData,
+        invoiceInfo: sanitizeFawaterakData(txJustCreated.fawaterakResponse),
+        subscriptionId: existingSub._id,
+        transactionId:
+          txJustCreated.fawaterakResponse?.transaction_id ||
+          txJustCreated.fawaterakResponse?.invoice_id ||
+          txJustCreated.intentKey,
+        orderNumber: null,
+        amount: txJustCreated.amount,
+      };
+    }
+
+    const urls = getRedirectionUrls(
+      req,
+      `?type=subscription&id=${existingSub._id}`,
+    );
+    const txData = await fawaterak.createTransaction({
+      amount: finalAmount,
+      methodId: methodId || null,
+      walletNumber: walletNumber || null,
+      customer: buildCustomer(user, { phone: walletNumber }),
+      orderId: existingSub._id,
+      orderType: "subscription",
+      ...urls,
+    });
+
+    const fawaterakExpire =
+      txData.payment_data?.expireDate ||
+      txData.payment_data?.expire_date ||
+      txData.payment_data?.expirationTime ||
+      txData.payment_data?.expiryDate ||
+      txData.expireDate ||
+      txData.expire_date ||
+      txData.expirationTime ||
+      txData.expiryDate;
+
+    const walletExpireDate =
+      Number(methodId) === 4
+        ? (fawaterakExpire || new Date(Date.now() + 4 * 60 * 1000).toISOString())
+        : fawaterakExpire;
+
+    const mergedPaymentData = {
       ...(txData.payment_data || {}),
+      ...(walletExpireDate ? { expireDate: walletExpireDate } : {}),
       targetPlanId: plan._id,
       targetBillingPeriod: billingPeriod,
       targetExpiresAt: expiresAt,
-    },
-    fawaterakResponse: txData,
-    fawaterakLogs: [
-      {
-        action: "create",
-        data: txData,
-      },
-    ],
+    };
+
+    const methodName =
+      Number(methodId) === 2
+        ? "Visa / Mastercard"
+        : Number(methodId) === 3
+          ? "Fawry"
+          : Number(methodId) === 4
+            ? "Mobile Wallet"
+            : "Online";
+
+    await PaymentTransaction.create({
+      userId: user._id,
+      referenceId: existingSub._id,
+      orderType: "subscription",
+      intentKey: txData.intent_key,
+      amount: finalAmount,
+      paymentMethodId: methodId || null,
+      paymentMethodName: methodName,
+      checkoutUrl: txData.url || null,
+      paymentData: mergedPaymentData,
+      fawaterakResponse: txData,
+      fawaterakLogs: [
+        {
+          action: "create",
+          data: txData,
+        },
+      ],
+    });
+
+    if (appliedCoupon && discount > 0) {
+      appliedCoupon.usedCount += 1;
+      await appliedCoupon.save();
+    }
+
+    return {
+      success: true,
+      intentKey: txData.intent_key,
+      checkoutUrl: txData.url || null,
+      paymentData: mergedPaymentData,
+      invoiceInfo: sanitizeFawaterakData(txData),
+      subscriptionId: existingSub._id,
+      transactionId:
+        txData.transaction_id || txData.invoice_id || txData.intent_key,
+      orderNumber: null,
+      amount: finalAmount,
+    };
   });
 
-  // Increment coupon usage
-  if (appliedCoupon && discount > 0) {
-    appliedCoupon.usedCount += 1;
-    await appliedCoupon.save();
-  }
-
-  res.json({
-    success: true,
-    intentKey: txData.intent_key,
-    // Hosted checkout URL (present when no methodId or redirect="true")
-    checkoutUrl: txData.url || null,
-    paymentData: txData.payment_data || null,
-    invoiceInfo: sanitizeFawaterakData(txData),
-    subscriptionId: existingSub._id,
-    transactionId:
-      txData.transaction_id || txData.invoice_id || txData.intent_key,
-    orderNumber: null, // Subscriptions don't have order numbers
-    amount: finalAmount,
-  });
+  res.json(responseData);
 });
 
 // ── POST /api/payment/order/:orderId ─────────────────────────────────────────
@@ -608,19 +800,85 @@ export const createOrderPayment = asyncHandler(async (req, res) => {
   }
   const checkout = order || draft;
 
+  // 1. Idempotency Check: Return existing pending transaction if user double-clicks or retries within 3 minutes
+  const recentOrderTx = await PaymentTransaction.findOne({
+    userId: user._id,
+    referenceId: checkout._id,
+    orderType: "store",
+    status: "pending",
+    createdAt: { $gte: new Date(Date.now() - 3 * 60 * 1000) },
+  }).sort({ createdAt: -1 });
+
+  const isSameOrderMethod =
+    recentOrderTx &&
+    ((methodId && Number(recentOrderTx.paymentMethodId) === Number(methodId)) ||
+      (!methodId && !recentOrderTx.paymentMethodId));
+
+  if (
+    recentOrderTx &&
+    isSameOrderMethod &&
+    (recentOrderTx.checkoutUrl || recentOrderTx.paymentData)
+  ) {
+    return res.json({
+      success: true,
+      intentKey: recentOrderTx.intentKey,
+      checkoutUrl: recentOrderTx.checkoutUrl || null,
+      paymentData: recentOrderTx.paymentData,
+      invoiceInfo: sanitizeFawaterakData(recentOrderTx.fawaterakResponse),
+      orderId: checkout._id,
+      orderNumber: order?.orderNumber || draft?.orderNumber || null,
+      transactionId:
+        recentOrderTx.fawaterakResponse?.transaction_id ||
+        recentOrderTx.fawaterakResponse?.invoice_id ||
+        recentOrderTx.intentKey,
+      amount: checkout.totalAmount,
+    });
+  }
+
+  // If user changed payment method, cancel previous pending transaction for this checkout
+  if (recentOrderTx && !isSameOrderMethod) {
+    recentOrderTx.status = "cancelled";
+    recentOrderTx.fawaterakLogs.push({
+      action: "cancelled_by_user_switch_method",
+      date: new Date(),
+    });
+    await recentOrderTx.save();
+  }
+
   if (user) {
-    // Check if there are any existing pending transactions for this user
-    const pendingTxs = await PaymentTransaction.find({
+    // Automatically cancel any uncompleted card transactions (cards finish or terminate - no pending/resuming)
+    await PaymentTransaction.updateMany(
+      {
+        userId: user._id,
+        status: "pending",
+        $or: [
+          { paymentMethodId: 2 },
+          { paymentMethodName: { $regex: /visa|mastercard|card|فيزا|ماستر|بطاقة/i } },
+        ],
+      },
+      { $set: { status: "cancelled" } }
+    );
+
+    // Check if there are any existing pending Fawry/Wallet transactions for this user (other orders or subscriptions)
+    const otherPendingTxs = await PaymentTransaction.find({
       userId: user._id,
       status: "pending",
-      orderType: "store"
-    });
+      referenceId: { $ne: checkout._id },
+      $or: [
+        { paymentMethodId: { $in: [3, 4] } },
+        { paymentMethodName: { $regex: /fawry|فوري|wallet|meeza|محفظ|كاش/i } },
+        { "paymentData.fawryCode": { $exists: true, $ne: null } },
+        { "paymentData.mobileWalletNumber": { $exists: true, $ne: null } },
+        { "paymentData.customerMobile": { $exists: true, $ne: null } },
+      ],
+      createdAt: { $gte: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+    }).sort({ createdAt: -1 });
     
-    if (pendingTxs.length > 0) {
+    if (otherPendingTxs.length > 0) {
       return res.status(400).json({
-        error: "يوجد طلب متجر قيد الانتظار بالفعل. يرجى إكماله أو إلغائه أولاً.",
+        error: "لديك عملية دفع قيد الانتظار (فوري / محفظة إلكترونية). يجب إكمال الدفع أو إلغاء العملية السابقة أولاً قبل إجراء أي عملية شراء جديدة.",
         code: "PENDING_PAYMENT_EXISTS",
-        pendingTx: pendingTxs[0]
+        pendingTx: otherPendingTxs[0],
       });
     }
   }
@@ -648,57 +906,124 @@ export const createOrderPayment = asyncHandler(async (req, res) => {
     userId: checkout.userId,
   };
 
-  const urls = getRedirectionUrls(req, `?type=order&id=${checkout._id}`);
-  const txData = await fawaterak.createTransaction({
-    amount: checkout.totalAmount,
-    methodId: methodId || null,
-    walletNumber: walletNumber || null,
-    customer,
-    orderId: checkout._id,
-    orderType: "store",
-    ...urls,
-  });
+  const lockKey = `order_${user._id}_${checkout._id}_${methodId || "default"}`;
+  const responseData = await runWithPaymentLock(lockKey, async () => {
+    // Re-check inside mutex in case a concurrent request just finished
+    const txJustCreated = await PaymentTransaction.findOne({
+      userId: user._id,
+      referenceId: checkout._id,
+      orderType: "store",
+      status: "pending",
+      createdAt: { $gte: new Date(Date.now() - 3 * 60 * 1000) },
+    }).sort({ createdAt: -1 });
 
-  if (order) {
-    order.intentKey = txData.intent_key;
-    order.paymentMethod = "online";
-    await order.save();
-  }
+    const isSameMethodInside =
+      txJustCreated &&
+      ((methodId && Number(txJustCreated.paymentMethodId) === Number(methodId)) ||
+        (!methodId && !txJustCreated.paymentMethodId));
 
-  // Create detailed transaction record
-  await PaymentTransaction.create({
-    userId: user._id,
-    referenceId: checkout._id,
-    orderType: "store",
-    intentKey: txData.intent_key,
-    amount: checkout.totalAmount,
-    paymentMethodId: methodId || null,
-    checkoutUrl: txData.url || null,
-    paymentData: {
+    if (
+      txJustCreated &&
+      isSameMethodInside &&
+      (txJustCreated.checkoutUrl || txJustCreated.paymentData)
+    ) {
+      return {
+        success: true,
+        intentKey: txJustCreated.intentKey,
+        checkoutUrl: txJustCreated.checkoutUrl || null,
+        paymentData: txJustCreated.paymentData,
+        invoiceInfo: sanitizeFawaterakData(txJustCreated.fawaterakResponse),
+        orderId: checkout._id,
+        orderNumber: order?.orderNumber || draft?.orderNumber || null,
+        transactionId:
+          txJustCreated.fawaterakResponse?.transaction_id ||
+          txJustCreated.fawaterakResponse?.invoice_id ||
+          txJustCreated.intentKey,
+        amount: checkout.totalAmount,
+      };
+    }
+
+    const urls = getRedirectionUrls(req, `?type=order&id=${checkout._id}`);
+    const txData = await fawaterak.createTransaction({
+      amount: checkout.totalAmount,
+      methodId: methodId || null,
+      walletNumber: walletNumber || null,
+      customer,
+      orderId: checkout._id,
+      orderType: "store",
+      ...urls,
+    });
+
+    if (order) {
+      order.intentKey = txData.intent_key;
+      order.paymentMethod = "online";
+      await order.save();
+    }
+
+    const fawaterakOrderExpire =
+      txData.payment_data?.expireDate ||
+      txData.payment_data?.expire_date ||
+      txData.payment_data?.expirationTime ||
+      txData.payment_data?.expiryDate ||
+      txData.expireDate ||
+      txData.expire_date ||
+      txData.expirationTime ||
+      txData.expiryDate;
+
+    const orderWalletExpireDate =
+      Number(methodId) === 4
+        ? (fawaterakOrderExpire || new Date(Date.now() + 4 * 60 * 1000).toISOString())
+        : fawaterakOrderExpire;
+
+    const mergedOrderPaymentData = {
       ...(txData.payment_data || {}),
+      ...(orderWalletExpireDate ? { expireDate: orderWalletExpireDate } : {}),
       ...(draft ? { checkoutDraftId: String(draft._id) } : {}),
-    },
-    fawaterakResponse: txData,
-    fawaterakLogs: [
-      {
-        action: "create",
-        data: txData,
-      },
-    ],
+    };
+
+    const orderMethodName =
+      Number(methodId) === 2
+        ? "Visa / Mastercard"
+        : Number(methodId) === 3
+          ? "Fawry"
+          : Number(methodId) === 4
+            ? "Mobile Wallet"
+            : "Online";
+
+    await PaymentTransaction.create({
+      userId: user._id,
+      referenceId: checkout._id,
+      orderType: "store",
+      intentKey: txData.intent_key,
+      amount: checkout.totalAmount,
+      paymentMethodId: methodId || null,
+      paymentMethodName: orderMethodName,
+      checkoutUrl: txData.url || null,
+      paymentData: mergedOrderPaymentData,
+      fawaterakResponse: txData,
+      fawaterakLogs: [
+        {
+          action: "create",
+          data: txData,
+        },
+      ],
+    });
+
+    return {
+      success: true,
+      intentKey: txData.intent_key,
+      checkoutUrl: txData.url || null,
+      paymentData: mergedOrderPaymentData,
+      invoiceInfo: sanitizeFawaterakData(txData),
+      orderId: checkout._id,
+      orderNumber: order?.orderNumber || draft?.orderNumber || null,
+      transactionId:
+        txData.transaction_id || txData.invoice_id || txData.intent_key,
+      amount: checkout.totalAmount,
+    };
   });
 
-  res.json({
-    success: true,
-    intentKey: txData.intent_key,
-    checkoutUrl: txData.url || null,
-    paymentData: txData.payment_data || null,
-    invoiceInfo: sanitizeFawaterakData(txData),
-    orderId: checkout._id,
-    orderNumber: order?.orderNumber || null,
-    transactionId:
-      txData.transaction_id || txData.invoice_id || txData.intent_key,
-    amount: checkout.totalAmount,
-  });
+  res.json(responseData);
 });
 
 // ── POST /api/payment/verify ──────────────────────────────────────────────────
@@ -706,39 +1031,87 @@ export const createOrderPayment = asyncHandler(async (req, res) => {
 // Called by frontend after redirect from Fawaterak to confirm payment status
 
 export const verifyPayment = asyncHandler(async (req, res) => {
-  const { intentKey } = req.body;
-
-  if (!intentKey) {
-    return res.status(400).json({ error: "intentKey is required" });
-  }
+  const { intentKey } = req.body || {};
 
   let effectiveIntentKey = intentKey;
-  if (mongoose.Types.ObjectId.isValid(intentKey)) {
-    const sub = await Subscription.findById(intentKey);
-    if (sub?.intentKey) {
-      effectiveIntentKey = sub.intentKey;
-    } else {
-      const ord = await Order.findById(intentKey);
-      if (ord?.intentKey) {
-        effectiveIntentKey = ord.intentKey;
-      } else {
-        const ptx =
-          (await PaymentTransaction.findOne({
-            orderType: "store",
-            $or: [
-              { referenceId: intentKey },
-              { "paymentData.checkoutDraftId": String(intentKey) },
-            ],
-          })) || (await PaymentTransaction.findById(intentKey));
-        if (ptx?.intentKey) effectiveIntentKey = ptx.intentKey;
-      }
+  let pTx = null;
+
+  if (intentKey && mongoose.Types.ObjectId.isValid(intentKey)) {
+    pTx = await PaymentTransaction.findOne({
+      $or: [
+        { _id: intentKey },
+        { referenceId: intentKey },
+        { "paymentData.checkoutDraftId": String(intentKey) },
+      ],
+    });
+    if (pTx?.intentKey) effectiveIntentKey = pTx.intentKey;
+  }
+
+  if (!pTx && effectiveIntentKey) {
+    pTx = await PaymentTransaction.findOne({ intentKey: effectiveIntentKey });
+  }
+
+  // Fallback: if intentKey wasn't specified, inspect user's latest transaction
+  if (!pTx && req.user) {
+    pTx = await PaymentTransaction.findOne({ userId: req.user._id }).sort({ createdAt: -1 });
+    if (pTx) effectiveIntentKey = pTx.intentKey;
+  }
+
+  if (!pTx) {
+    return res.status(404).json({ error: "Transaction not found" });
+  }
+
+  // Authorize User (Ownership Check)
+  if (pTx.userId.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ error: "Unauthorized access to this payment" });
+  }
+
+  // If already verified and marked as paid in our database
+  if (pTx.status === "paid") {
+    const orderType = pTx.orderType;
+    if (orderType === "subscription") {
+      const subscription = await Subscription.findById(pTx.referenceId);
+      const state = subscription
+        ? await getSubscriptionState(subscription.userId)
+        : null;
+      return res.json({
+        success: true,
+        status: "paid",
+        type: "subscription",
+        state,
+        intentKey: pTx.intentKey,
+        transactionId:
+          pTx.fawaterakResponse?.transaction_id ||
+          pTx.fawaterakResponse?.invoice_id ||
+          pTx.intentKey,
+        amount: pTx.amount,
+        paymentMethodName: pTx.paymentMethodName,
+      });
+    } else if (orderType === "store") {
+      const order =
+        (await Order.findOne({ paymentTransactionId: pTx._id })) ||
+        (await Order.findOne({ intentKey: pTx.intentKey }));
+      return res.json({
+        success: true,
+        status: "paid",
+        type: "store",
+        orderId: order?._id,
+        orderNumber: order?.orderNumber,
+        intentKey: pTx.intentKey,
+        transactionId:
+          pTx.fawaterakResponse?.transaction_id ||
+          pTx.fawaterakResponse?.invoice_id ||
+          pTx.intentKey,
+        amount: pTx.amount,
+        paymentMethodName: pTx.paymentMethodName,
+      });
     }
   }
 
-  // Fetch live status from Fawaterak
+  // Live status verification directly with Fawaterak API (Server-to-Server)
   let txData;
   try {
-    txData = await fawaterak.getTransactionData(effectiveIntentKey);
+    txData = await fawaterak.getTransactionData(pTx.intentKey);
   } catch (err) {
     return res.json({
       success: false,
@@ -749,34 +1122,47 @@ export const verifyPayment = asyncHandler(async (req, res) => {
 
   const isPaid = txData.paid === 1 || txData.status_text === "paid";
 
-  // Update PaymentTransaction securely
-  const pTx = await PaymentTransaction.findOne({
-    intentKey: effectiveIntentKey,
-  });
-  
-  if (!pTx) {
-    return res.status(404).json({ error: "Transaction not found" });
-  }
-
-  // Authorize User (Ownership Check)
-  // verifyPayment is protected by requireAuth, so req.user exists
-  if (pTx.userId.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ error: "Unauthorized access to this payment" });
-  }
-
   if (!isPaid) {
-    // If not paid but pending/failed, just update the status safely
+    const isCardTx =
+      pTx.paymentMethodId === 2 ||
+      (pTx.paymentMethodName &&
+        /visa|mastercard|card|فيزا|ماستر|بطاقة/i.test(pTx.paymentMethodName)) ||
+      (txData.payment_method &&
+        /visa|mastercard|card|فيزا|ماستر|بطاقة/i.test(txData.payment_method));
+
+    if (isCardTx) {
+      // Bank card payment: strictly binary — either paid or failed/cancelled. Never pending.
+      pTx.status = "failed";
+      pTx.paymentMethodName = txData.payment_method || pTx.paymentMethodName;
+      pTx.fawaterakResponse = txData;
+      await pTx.save();
+
+      return res.json({
+        success: false,
+        status: "failed",
+        isCard: true,
+        message: "لم تكتمل عملية الدفع بالبطاقة البنكية أو تم إلغاؤها.",
+      });
+    }
+
+    // If not paid, update status safely (Fawry / Wallets)
     if (pTx.status !== "paid" && pTx.status !== "suspicious_amount") {
-      pTx.status = txData.status_text === "failed" || txData.status_text === "expired" ? "failed" : "pending";
+      pTx.status =
+        txData.status_text === "failed" || txData.status_text === "expired"
+          ? "failed"
+          : "pending";
       pTx.paymentMethodName = txData.payment_method;
       pTx.fawaterakResponse = txData;
 
-      // Prevent duplicate logging (only log if status changes to avoid large arrays)
       const lastLog = pTx.fawaterakLogs[pTx.fawaterakLogs.length - 1];
-      if (!lastLog || lastLog.action !== "verify" || lastLog.data?.status_text !== txData.status_text) {
+      if (
+        !lastLog ||
+        lastLog.action !== "verify" ||
+        lastLog.data?.status_text !== txData.status_text
+      ) {
         pTx.fawaterakLogs.push({ action: "verify", data: txData });
       }
-      
+
       await pTx.save();
     }
 
@@ -866,11 +1252,7 @@ export const handleWebhook = asyncHandler(async (req, res) => {
       .json({ error: "Missing intent_key in webhook body" });
   }
 
-  if (!paid) {
-    return res.json({ received: true, status: "not_paid" });
-  }
-
-  // Fetch authoritative transaction data
+  // Fetch authoritative transaction data from Fawaterak
   let txData;
   try {
     txData = await fawaterak.getTransactionData(intentKey);
@@ -936,47 +1318,49 @@ export const handleWebhook = asyncHandler(async (req, res) => {
 export const getPendingPayments = asyncHandler(async (req, res) => {
   const user = req.user;
 
-  // Retrieve all pending payment transactions for the user
+  // 1. Immediately terminate and cancel ANY pending card transactions for this user.
+  // Card payments are instant (either paid or failed/cancelled - no pending/resuming).
+  await PaymentTransaction.updateMany(
+    {
+      userId: user._id,
+      status: "pending",
+      $or: [
+        { paymentMethodId: 2 },
+        { paymentMethodName: { $regex: /visa|mastercard|card|فيزا|ماستر|بطاقة/i } },
+      ],
+    },
+    { $set: { status: "cancelled" } }
+  );
+
+  // 2. Only Fawry (methodId: 3) and Mobile Wallets (methodId: 4 or Meeza/Wallets) can have pending status
   const pendingTransactions = await PaymentTransaction.find({
     userId: user._id,
     status: "pending",
+    $or: [
+      { paymentMethodId: { $in: [3, 4] } },
+      { paymentMethodName: { $regex: /fawry|فوري|wallet|meeza|محفظ|كاش/i } },
+      { "paymentData.fawryCode": { $exists: true, $ne: null } },
+      { "paymentData.mobileWalletNumber": { $exists: true, $ne: null } },
+      { "paymentData.customerMobile": { $exists: true, $ne: null } },
+    ],
   }).sort({ createdAt: -1 });
 
   const subscriptions = [];
   const orders = [];
 
   for (const tx of pendingTransactions) {
-    let isActivePending = true;
-
-    // Auto-cancel pending Visa/Mastercard (Method 2) payments since they can't be resumed
-    // Also auto-cancel Wallet (Method 4) payments older than 5 minutes
-    const isExpiredWallet =
-      tx.paymentMethodId === 4 &&
-      Date.now() - new Date(tx.createdAt).getTime() > 5 * 60 * 1000;
-
-    if (
+    // Card payments (Visa / Mastercard) are instant and do not support offline "resuming"
+    const isCardTx =
       tx.paymentMethodId === 2 ||
-      tx.paymentMethodName?.toLowerCase().includes("visa") ||
-      isExpiredWallet
-    ) {
-      tx.status = "cancelled";
-      await tx.save();
+      (tx.paymentMethodName &&
+        /visa|mastercard|card|فيزا|ماستر|بطاقة/i.test(tx.paymentMethodName));
 
-      if (tx.orderType === "subscription") {
-        const sub = await Subscription.findOne({ intentKey: tx.intentKey });
-        if (sub && sub.status === "pending") {
-          sub.status = "cancelled";
-          await sub.save();
-        }
-      } else if (tx.orderType === "store") {
-        const ord = await Order.findOne({ intentKey: tx.intentKey });
-        if (ord && ord.paymentStatus === "pending") {
-          ord.paymentStatus = "cancelled";
-          await ord.save();
-        }
-      }
+    if (isCardTx) {
       continue;
     }
+
+    let isActivePending = true;
+
 
     // Check with Fawaterak to get the live status with a safe timeout
     try {
@@ -1039,9 +1423,18 @@ export const getPendingPayments = asyncHandler(async (req, res) => {
           .lean();
 
         if (sub) {
-          // If the subscription is already active, this pending transaction is obsolete
-          if (sub.status === "active") {
-            tx.status = "cancelled";
+          const currentPlanIdStr =
+            sub.planId?._id?.toString() || sub.planId?.toString();
+          const targetPlanIdStr = tx.paymentData?.targetPlanId?.toString();
+
+          // Only consider the pending transaction obsolete if the subscription has already
+          // been activated to the exact target plan (e.g. verified via webhook)
+          if (
+            sub.status === "active" &&
+            targetPlanIdStr &&
+            currentPlanIdStr === targetPlanIdStr
+          ) {
+            tx.status = "paid";
             await tx.save();
             continue;
           }
@@ -1052,6 +1445,9 @@ export const getPendingPayments = asyncHandler(async (req, res) => {
               tx.paymentData.targetPlanId,
             ).lean();
             sub.status = "pending";
+          }
+          if (tx.paymentData?.targetBillingPeriod) {
+            sub.billingPeriod = tx.paymentData.targetBillingPeriod;
           }
           subscriptions.push({ ...sub, transaction: tx });
         }
@@ -1092,51 +1488,271 @@ export const cancelPayment = asyncHandler(async (req, res) => {
 
   // Change status to cancelled instead of deleting the transaction so it remains in invoice history
   pTx.status = "cancelled";
+  pTx.fawaterakLogs.push({ action: "user_cancelled", date: new Date() });
   await pTx.save();
 
-  // We DO NOT delete the existing subscription.
+  // If it's a store order, cancel the order and clean up draft
   if (pTx.orderType === "store") {
-    const ord = await Order.findOne({ intentKey });
+    const ord =
+      (await Order.findOne({ intentKey })) ||
+      (await Order.findOne({ paymentTransactionId: pTx._id })) ||
+      (await Order.findById(pTx.referenceId));
     if (ord && ord.paymentStatus === "pending") {
       ord.paymentStatus = "cancelled";
       await ord.save();
     }
+    await OrderDraft.deleteOne({ _id: pTx.referenceId });
   }
 
-  res.json({ success: true, message: "Payment cancelled successfully" });
+  res.json({ success: true, message: "تم إلغاء عملية الدفع بنجاح" });
 });
 
 // ── GET /api/payment/invoice/:type/:id ───────────────────────────────────────
-// Get invoice details from backend to ensure secure amount loading
+// Get invoice details from backend to ensure secure amount loading and strict user ownership
 export const getInvoiceDetails = asyncHandler(async (req, res) => {
   const { type, id } = req.params;
+  const user = req.user;
+
+  if (!user?._id) {
+    return res.status(401).json({ error: "تسجيل الدخول مطلوب لعرض الفاتورة", invalidLink: true });
+  }
+
+  // Support direct lookup by intentKey if type === "intent" or id looks like an intentKey
+  if (type === "intent" || type === "transaction") {
+    const pTx = await PaymentTransaction.findOne({ intentKey: id });
+    if (!pTx) {
+      return res.status(404).json({ error: "عملية الدفع غير موجودة أو انتهت صلاحيتها", invalidLink: true });
+    }
+
+    // STRICT USER OWNERSHIP:
+    if (!pTx.userId || pTx.userId.toString() !== user._id.toString()) {
+      return res.status(403).json({
+        error: "رابط الدفع هذا غير مخصص لحسابك الحالي. يرجى إعادة عملية الشراء من حسابك.",
+        invalidLink: true,
+      });
+    }
+
+    if (pTx.status === "paid") {
+      return res.json({
+        success: true,
+        alreadyPaid: true,
+        data: {
+          id: pTx.referenceId,
+          amount: pTx.amount,
+          status: "paid",
+        },
+      });
+    }
+
+    if (pTx.status === "cancelled" || pTx.status === "failed") {
+      return res.status(400).json({
+        error: "تم إلغاء عملية الدفع هذه سابقاً. يرجى إعادة عملية الشراء من البداية.",
+        invalidLink: true,
+      });
+    }
+
+    if (pTx.orderType === "store") {
+      const order = (await Order.findById(pTx.referenceId)) || (await OrderDraft.findById(pTx.referenceId));
+      return res.json({
+        success: true,
+        data: {
+          id: pTx.referenceId,
+          orderId: pTx.referenceId,
+          orderNumber: order?.orderNumber || null,
+          amount: pTx.amount,
+          originalAmount: order?.totalAmount || pTx.amount,
+          shippingCost: order?.shippingCost || 0,
+          discount: order?.discount || 0,
+          items: (order?.items || []).map((item) => ({
+            name: typeof item.name === "object" ? (item.name.ar || item.name.en || JSON.stringify(item.name)) : item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          name: `طلب متجر #${order?.orderNumber || pTx.referenceId?.toString().slice(-6).toUpperCase()}`,
+          customer: order?.customer || null,
+          transaction: pTx,
+        },
+      });
+    }
+
+    const plan = await Plan.findById(pTx.paymentData?.targetPlanId);
+    return res.json({
+      success: true,
+      data: {
+        id: plan?._id || pTx.referenceId,
+        planId: plan?._id || pTx.paymentData?.targetPlanId,
+        name: plan?.name?.ar || plan?.name?.en || "Thenith Pro",
+        amount: pTx.amount,
+        billingPeriod: pTx.paymentData?.targetBillingPeriod || "monthly",
+        transaction: pTx,
+      },
+    });
+  }
   
   if (type === "order") {
-    let order = await Order.findById(id);
+    let order = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      order = (await Order.findById(id)) || (await OrderDraft.findById(id));
+    }
     if (!order) {
-      order = await OrderDraft.findById(id);
+      order = (await Order.findOne({ intentKey: id })) || (await Order.findOne({ orderNumber: id }));
     }
-    if (!order) return res.status(404).json({ error: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ error: "الطلب غير موجود أو انتهت صلاحيته", invalidLink: true });
+    }
     
-    // Only the user who owns it (or guest checkout) can view
-    if (order.userId && req.user && order.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: "Unauthorized access to this order" });
+    // STRICT OWNERSHIP CHECK:
+    // Order MUST belong to the currently logged in user!
+    if (!order.userId || order.userId.toString() !== user._id.toString()) {
+      return res.status(403).json({
+        error: "رابط الدفع هذا غير مخصص لحسابك الحالي. يرجى إعادة عملية الشراء من حسابك.",
+        invalidLink: true,
+      });
     }
+
+    if (order.paymentStatus === "paid") {
+      return res.json({
+        success: true,
+        alreadyPaid: true,
+        data: {
+          id: order._id,
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          amount: order.totalAmount,
+          status: "paid",
+        },
+      });
+    }
+
+    if (order.paymentStatus === "cancelled") {
+      return res.status(400).json({
+        error: "تم إلغاء هذا الطلب سابقاً. يرجى إنشاء طلب جديد من المتجر.",
+        invalidLink: true,
+      });
+    }
+
+    // If query intentKey was provided, verify it belongs to this user
+    if (req.query.intentKey) {
+      const qTx = await PaymentTransaction.findOne({ intentKey: req.query.intentKey });
+      if (qTx && (!qTx.userId || qTx.userId.toString() !== user._id.toString())) {
+        return res.status(403).json({
+          error: "رابط الدفع هذا غير مخصص لحسابك الحالي. يرجى إعادة عملية الشراء من حسابك.",
+          invalidLink: true,
+        });
+      }
+    }
+
+    // Check if there is an active pending transaction for this order
+    const pTx = await PaymentTransaction.findOne({
+      userId: user._id,
+      status: "pending",
+      $or: [
+        { referenceId: order._id },
+        { intentKey: order.intentKey || id },
+        ...(req.query.intentKey ? [{ intentKey: req.query.intentKey }] : []),
+      ],
+    }).sort({ createdAt: -1 });
 
     return res.json({
       success: true,
       data: {
         id: order._id,
+        orderId: order._id,
         orderNumber: order.orderNumber || null,
-        amount: order.totalAmount,
-        name: "Thenith Store Order",
-      }
+        amount: pTx?.amount || order.totalAmount,
+        originalAmount: order.totalAmount,
+        shippingCost: order.shippingCost || 0,
+        discount: order.discount || 0,
+        items: (order.items || []).map((item) => ({
+          name: typeof item.name === "object" ? (item.name.ar || item.name.en || JSON.stringify(item.name)) : item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        name: `طلب متجر #${order.orderNumber || order._id.toString().slice(-6).toUpperCase()}`,
+        customer: order.customer ? {
+          name: order.customer.name,
+          phone: order.customer.phone,
+          address: order.customer.address,
+          city: order.customer.city,
+        } : null,
+        transaction: pTx || null,
+      },
     });
   } else if (type === "subscription") {
-    const plan = await Plan.findById(id);
-    if (!plan) return res.status(404).json({ error: "Plan not found" });
+    let plan = null;
+    let targetSub = null;
 
-    const billingPeriod = req.query.billingPeriod || "monthly";
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      plan = await Plan.findById(id);
+      if (!plan) {
+        targetSub = await Subscription.findById(id).populate("planId");
+        if (targetSub) {
+          // STRICT OWNERSHIP CHECK: Subscription MUST belong to logged in user!
+          if (!targetSub.userId || targetSub.userId.toString() !== user._id.toString()) {
+            return res.status(403).json({
+              error: "رابط الدفع هذا غير مخصص لحسابك الحالي. يرجى إعادة عملية الشراء من حسابك.",
+              invalidLink: true,
+            });
+          }
+          plan = targetSub.planId;
+        }
+      }
+    }
+
+    // What if intentKey was passed in query or as id?
+    const intentKey = req.query.intentKey || (id && !plan && !targetSub ? id : null);
+    let pTx = null;
+    if (intentKey) {
+      pTx = await PaymentTransaction.findOne({ intentKey });
+      if (pTx) {
+        // STRICT OWNERSHIP CHECK: Transaction MUST belong to logged in user!
+        if (!pTx.userId || pTx.userId.toString() !== user._id.toString()) {
+          return res.status(403).json({
+            error: "رابط الدفع هذا غير مخصص لحسابك الحالي. يرجى إعادة عملية الشراء من حسابك.",
+            invalidLink: true,
+          });
+        }
+        if (pTx.status === "paid") {
+          return res.json({
+            success: true,
+            alreadyPaid: true,
+            data: {
+              id: plan?._id || pTx.referenceId,
+              planId: plan?._id || pTx.paymentData?.targetPlanId,
+              amount: pTx.amount,
+              status: "paid",
+            },
+          });
+        }
+        if (pTx.status === "cancelled" || pTx.status === "failed") {
+          return res.status(400).json({
+            error: "تم إلغاء عملية الدفع السابقة. يرجى إعادة الاشتراك من البداية.",
+            invalidLink: true,
+          });
+        }
+        if (!plan && pTx.paymentData?.targetPlanId) {
+          plan = await Plan.findById(pTx.paymentData.targetPlanId);
+        }
+      }
+    }
+
+    if (!plan) {
+      return res.status(404).json({ error: "الباقة غير موجودة أو انتهت صلاحية الرابط", invalidLink: true });
+    }
+
+    if (!pTx) {
+      pTx = await PaymentTransaction.findOne({
+        userId: user._id,
+        orderType: "subscription",
+        status: "pending",
+        $or: [
+          ...(targetSub ? [{ referenceId: targetSub._id }] : []),
+          { "paymentData.targetPlanId": plan._id },
+        ],
+      }).sort({ createdAt: -1 });
+    }
+
+    const billingPeriod = pTx?.paymentData?.targetBillingPeriod || req.query.billingPeriod || "monthly";
     const couponCode = req.query.couponCode || "";
     
     let baseAmount = billingPeriod === "yearly"
@@ -1166,20 +1782,25 @@ export const getInvoiceDetails = asyncHandler(async (req, res) => {
       }
     }
 
-    const amount = baseAmount - discount;
+    const calculatedAmount = Math.max(baseAmount - discount, 1);
+    const finalAmount = pTx?.amount || calculatedAmount;
 
     return res.json({
       success: true,
       data: {
         id: plan._id,
-        name: plan.name?.ar || plan.name?.en || plan.name,
+        planId: plan._id,
+        subscriptionId: targetSub?._id || null,
+        name: plan.name?.ar || plan.name?.en || (typeof plan.name === "string" ? plan.name : "Thenith Pro"),
         priceMonthly: plan.prices?.monthly || 0,
         priceYearly: plan.prices?.yearly || 0,
-        amount,
+        billingPeriod,
+        amount: finalAmount,
         discount,
-      }
+        transaction: pTx || null,
+      },
     });
   }
 
-  res.status(400).json({ error: "Invalid invoice type" });
+  res.status(400).json({ error: "نوع الفاتورة غير صحيح", invalidLink: true });
 });

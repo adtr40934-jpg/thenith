@@ -1,19 +1,52 @@
 import nodemailer from "nodemailer";
+import dns from "dns";
+import net from "net";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const transportConfig = {
-  host: process.env.SMTP_HOST || "smtp.hostinger.com",
-  port: parseInt(process.env.SMTP_PORT || "465", 10),
-  secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
-};
+let cachedHostIp = null;
+let lastLookupTime = 0;
 
-let currentTransporter = nodemailer.createTransport(transportConfig);
+async function resolveHostIp(hostname) {
+  if (!hostname || net.isIP(hostname)) return hostname;
+  const now = Date.now();
+  if (cachedHostIp && now - lastLookupTime < 300000) {
+    return cachedHostIp;
+  }
+  try {
+    const res = await dns.promises.lookup(hostname);
+    if (res?.address) {
+      cachedHostIp = res.address;
+      lastLookupTime = now;
+      return res.address;
+    }
+  } catch (err) {
+    console.warn(`[Mail] DNS lookup failed for ${hostname}:`, err.message);
+  }
+  return hostname;
+}
+
+async function getTransporter() {
+  const host = process.env.SMTP_HOST || "smtp.hostinger.com";
+  const targetHost = await resolveHostIp(host);
+
+  return nodemailer.createTransport({
+    host: targetHost,
+    port: parseInt(process.env.SMTP_PORT || "465", 10),
+    secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD,
+    },
+    tls: {
+      servername: host,
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000,
+  });
+}
+
 
 export const sendOrderStatusEmail = async ({
   email,
@@ -71,12 +104,14 @@ export const sendOrderStatusEmail = async ({
   `;
 
   try {
-    await currentTransporter.sendMail({
+    const transporter = await getTransporter();
+    await transporter.sendMail({
       from: `"${process.env.MAIL_FROM || "Thenith Team"}" <${process.env.SMTP_USER}>`,
       to: email,
       subject,
       html,
     });
   } catch (error) {
+    console.error(`[Mail Error] Failed to send order status email to ${email}:`, error.message);
   }
 };

@@ -7,39 +7,65 @@ const { getDaysRemaining  } = _subscription788;
 import _entitlements6033 from "../util/entitlements.js";
 const { buildEntitlements  } = _entitlements6033;
 
+let cachedFreePlan = null;
+let cachedFreePlanTime = 0;
+const FREE_PLAN_TTL_MS = 10 * 60 * 1000;
+
+export async function getCachedFreePlan() {
+  const now = Date.now();
+  if (cachedFreePlan && now - cachedFreePlanTime < FREE_PLAN_TTL_MS) {
+    return cachedFreePlan;
+  }
+  const plan = await Plan.findOne({ key: "free" }).lean();
+  if (plan) {
+    cachedFreePlan = plan;
+    cachedFreePlanTime = now;
+  }
+  return plan || cachedFreePlan;
+}
+
+export function invalidateFreePlanCache() {
+  cachedFreePlan = null;
+  cachedFreePlanTime = 0;
+}
+
 /**
  * Returns the full subscription state for a given userId.
  * @param {ObjectId|string} userId
  * @param {boolean} includeUsage - Whether to include card usage counts
  */
 async function getSubscriptionState(userId, includeUsage = false) {
-  const freePlan = await Plan.findOne({ key: "free" });
-  const subscription = await Subscription.findOne({ userId })
-    .sort({ updatedAt: -1 })
-    .populate("planId");
+  const month = new Date().toISOString().slice(0, 7);
+
+  // Fetch free plan from memory/DB and query subscription concurrently
+  const [freePlan, subscription, usageDoc, cardsTotalStored] = await Promise.all([
+    getCachedFreePlan(),
+    Subscription.findOne({ userId })
+      .sort({ updatedAt: -1 })
+      .populate("planId")
+      .lean(),
+    includeUsage ? Usage.findOne({ userId, month }).lean() : Promise.resolve(null),
+    includeUsage ? Card.countDocuments({ userId }) : Promise.resolve(undefined),
+  ]);
 
   const isExpired =
-    subscription?.expiresAt && subscription.expiresAt <= new Date();
+    subscription?.expiresAt && new Date(subscription.expiresAt) <= new Date();
   const isEntitled =
     subscription &&
     ["active", "trialing"].includes(subscription.status) &&
     !isExpired;
   const plan = isEntitled ? subscription.planId : freePlan;
   const definition = plan
-    ? plan.toObject()
+    ? (typeof plan.toObject === "function" ? plan.toObject() : plan)
     : freePlan
-      ? freePlan.toObject()
+      ? (typeof freePlan.toObject === "function" ? freePlan.toObject() : freePlan)
       : { key: "free", features: {}, limits: {} };
   const planKey = definition.key === "pro" ? "pro" : "free";
 
-  const month = new Date().toISOString().slice(0, 7);
-  const usageDoc = await Usage.findOne({ userId, month });
   const brUsed = usageDoc?.businessRequests || 0;
 
-  let cardsTotalStored = undefined;
   let cardsUsed = undefined;
-  if (includeUsage) {
-    cardsTotalStored = await Card.countDocuments({ userId });
+  if (includeUsage && cardsTotalStored !== undefined) {
     const maxCards = definition.limits?.maxCards ?? null;
     cardsUsed =
       maxCards !== null

@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { fetchProfile } from "../services/profileApi.js";
 import { normalizePortfolio } from "../utils/normalizePortfolio.js";
-import { applyProfileSeo } from "../utils/seo.js";
+import { applyProfileSeo, getNotFoundSeoData, applyPageSeo } from "../../utils/seo.js";
 import { getLocalizedErrorMessage } from "../../utils/errorHandling.js";
+import { useLanguage } from "./LanguageContext.jsx";
 
 const STORAGE_KEY = "thenith_portfolio_data";
 const PortfolioContext = createContext(undefined);
@@ -152,9 +153,29 @@ export const PortfolioProvider = ({ children, mockProfile }) => {
     };
   }, [mockProfile]);
 
+  const langCtx = (() => {
+    try {
+      return useLanguage();
+    } catch {
+      return { language: "ar" };
+    }
+  })();
+  const language = langCtx?.language || "ar";
+
   useEffect(() => {
-    applyProfileSeo(profile);
-  }, [profile]);
+    if (status === "not-found") {
+      applyPageSeo(getNotFoundSeoData(language, "profile"));
+    } else if (status === "error") {
+      applyPageSeo({
+        title: language === "en" ? "Profile Unavailable | Thenith" : "البروفايل غير متاح | Thenith",
+        description: language === "en" ? "This profile is currently unavailable." : "البروفايل غير متاح حالياً.",
+        robots: "noindex, nofollow",
+        lang: language,
+      });
+    } else if (status === "success" && profile) {
+      applyProfileSeo(profile, { language });
+    }
+  }, [profile, status, language]);
 
   useEffect(() => {
     const handleMessage = (event) => {

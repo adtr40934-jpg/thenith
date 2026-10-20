@@ -8,6 +8,8 @@ import AdminLayout from "../components/AdminLayout.jsx";
 import AdminLogin from "../pages/AdminLogin.jsx";
 import Overview from "../pages/Overview.jsx";
 import UsersManager from "../pages/UsersManager.jsx";
+import CardsManager from "../pages/CardsManager.jsx";
+import CardDetailsPage from "../pages/CardDetailsPage.jsx";
 import SubscriptionsManager from "../pages/SubscriptionsManager.jsx";
 import SubscriptionAnalytics from "../pages/SubscriptionAnalytics.jsx";
 import StoreManager from "../pages/StoreManager.jsx";
@@ -35,6 +37,8 @@ function DashboardRoutesContent() {
       <Route path="/" element={<AdminLayout />}>
         <Route index element={<Overview />} />
         <Route path="users" element={<UsersManager />} />
+        <Route path="cards" element={<CardsManager />} />
+        <Route path="cards/:id" element={<CardDetailsPage />} />
         <Route path="subscriptions" element={<SubscriptionsManager />} />
         <Route path="subscriptions-stats" element={<SubscriptionAnalytics />} />
         <Route path="store" element={<StoreManager />} />

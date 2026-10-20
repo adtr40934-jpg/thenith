@@ -17,10 +17,29 @@ const { getCards,
   deletePhysicalCard,
  } = _panelController7798;
 
+import {
+  resolvePublicCard,
+  claimPhysicalCard,
+  listMyPhysicalCards,
+  reassignCardProfile,
+  unlinkMyPhysicalCard,
+} from "../controller/physicalCardController.js";
+
 const router = Router();
 
 // Public compatibility endpoint for rendering a sanitized card view.
 router.get("/public/:cardId", getPublicCard);
+
+// Public resolver for physical smart cards (e.g. /c/:publicId)
+router.get("/resolve/:publicId", resolvePublicCard);
+router.get("/c/:publicId", resolvePublicCard);
+router.get("/public-physical/:publicId", resolvePublicCard);
+
+// User claiming physical card (only requires authentication)
+router.post("/claim", requireAuth, claimPhysicalCard);
+router.get("/my-cards", requireAuth, listMyPhysicalCards);
+router.patch("/my-cards/:id/profile", requireAuth, reassignCardProfile);
+router.delete("/my-cards/:id", requireAuth, unlinkMyPhysicalCard);
 
 router.use(requireAuth);
 router.use(requireSubscription);

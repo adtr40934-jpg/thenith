@@ -248,3 +248,106 @@ export async function updateShippingRate(id, data) { return adminFetch('/admin/s
 export async function deleteShippingRate(id) { return adminFetch('/admin/shipping-rates/' + id, { method: 'DELETE' }); }
 
 export async function bulkUpdateShippingCost(data) { return adminFetch('/admin/shipping-rates/bulk-update', { method: 'POST', data }); }
+
+// ===== PHYSICAL SMART CARDS MANAGEMENT =====
+export async function fetchPhysicalCards(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, val]) => {
+    if (val !== undefined && val !== null && val !== "") {
+      query.append(key, val);
+    }
+  });
+  const qs = query.toString();
+  return adminFetch(`/admin/cards${qs ? `?${qs}` : ""}`);
+}
+
+export async function fetchPhysicalCardStats() {
+  return adminFetch("/admin/cards/stats");
+}
+
+export async function createPhysicalCard(data) {
+  return adminFetch("/admin/cards", {
+    method: "POST",
+    data,
+  });
+}
+
+export async function createBulkPhysicalCards(data) {
+  return adminFetch("/admin/cards/bulk", {
+    method: "POST",
+    data,
+  });
+}
+
+export async function fetchPhysicalCardDetails(id) {
+  return adminFetch(`/admin/cards/${id}`);
+}
+
+export async function updatePhysicalCardDetails(id, data) {
+  return adminFetch(`/admin/physical-cards/${id}`, {
+    method: "PATCH",
+    data,
+  });
+}
+
+export async function updatePhysicalCardStatus(id, data) {
+  return adminFetch(`/admin/cards/${id}/status`, {
+    method: "PATCH",
+    data,
+  });
+}
+
+export async function unlinkPhysicalCard(id) {
+  return adminFetch(`/admin/cards/${id}/unlink`, {
+    method: "POST",
+  });
+}
+
+export async function deletePhysicalCard(id) {
+  return adminFetch(`/admin/physical-cards/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchPhysicalCardQr(id, format = "png") {
+  return adminFetch(`/admin/cards/${id}/qr?format=${format}`);
+}
+
+export async function fetchPhysicalCardLogs(id) {
+  return adminFetch(`/admin/cards/${id}/logs`);
+}
+
+export async function startNfcProvisioning(id) {
+  return adminFetch(`/admin/cards/${id}/nfc/provision`, {
+    method: "POST",
+  });
+}
+
+export async function verifyNfcProvisioning(id, data) {
+  return adminFetch(`/admin/cards/${id}/nfc/verify`, {
+    method: "POST",
+    data,
+  });
+}
+
+export async function simulateNfcTest(id) {
+  return adminFetch(`/admin/cards/${id}/nfc/simulate-test`, {
+    method: "POST",
+  });
+}
+
+// ===== CARD BATCHES & INVENTORY =====
+export async function fetchCardBatches() {
+  return adminFetch("/admin/card-batches");
+}
+
+export async function createCardBatch(data) {
+  return adminFetch("/admin/card-batches", {
+    method: "POST",
+    data,
+  });
+}
+
+export async function fetchCardBatchDetails(id) {
+  return adminFetch(`/admin/card-batches/${id}`);
+}

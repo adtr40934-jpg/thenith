@@ -20,6 +20,7 @@ import {
 import GlobalLogo from "../../../components/GlobalLogo.jsx";
 import ErrorNotice from "../../../components/ErrorNotice.jsx";
 import { getLocalizedErrorMessage } from "../../../utils/errorHandling.js";
+import { generateGenderAvatar } from "../../../utils/avatarGenerator.js";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 
 export default function Auth({ t, language, onLogin, forceMode }) {
@@ -136,16 +137,58 @@ export default function Auth({ t, language, onLogin, forceMode }) {
   };
 
   const handleRegistrationSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
+
+    if (regStepIndex === 0) {
+      if (!formData.fullName.trim()) {
+        setError(
+          isRtl
+            ? "يرجى كتابة اسمك بالكامل للمتابعة"
+            : "Please enter your full name to continue",
+        );
+        return;
+      }
+    } else if (regStepIndex === 1) {
+      if (!formData.jobTitle.trim()) {
+        setError(
+          isRtl
+            ? "يرجى كتابة المسمى الوظيفي للمتابعة"
+            : "Please enter your job title to continue",
+        );
+        return;
+      }
+    } else if (regStepIndex === 2) {
+      if (!formData.company.trim()) {
+        setError(
+          isRtl
+            ? "يرجى كتابة اسم الشركة أو مكان العمل للمتابعة"
+            : "Please enter your company to continue",
+        );
+        return;
+      }
+    } else if (regStepIndex === 3) {
+      if (!formData.bio.trim()) {
+        setError(
+          isRtl
+            ? "يرجى كتابة نبذة تعريفية قصيرة عنك للمتابعة"
+            : "Please write a short bio to continue",
+        );
+        return;
+      }
+    }
+
     if (regStepIndex < 3) {
+      setError("");
       setRegStepIndex(regStepIndex + 1);
       return;
     }
+
     setIsSubmitting(true);
+    setError("");
     try {
       const result = await completeRegistration({
         verificationToken,
-        name: formData.fullName.trim() || (isRtl ? "مستخدم جديد" : "New User"),
+        name: formData.fullName.trim(),
         jobTitle: formData.jobTitle.trim(),
         company: formData.company.trim(),
         bio: formData.bio.trim(),
@@ -381,51 +424,100 @@ export default function Auth({ t, language, onLogin, forceMode }) {
                   className="space-y-4 p-6 sm:p-8"
                 >
                   <div>
-                    <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30">
+                    <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30">
                       <User className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                     </div>
+
+                    {/* Registration Step Progress */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                        <span>
+                          {isRtl
+                            ? `الخطوة ${regStepIndex + 1} من 4`
+                            : `Step ${regStepIndex + 1} of 4`}
+                        </span>
+                        <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                          {isRtl ? "مطلوبة إجبارياً" : "Required step"}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+                          style={{ width: `${((regStepIndex + 1) / 4) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
                     <h2 className="text-lg font-black text-slate-800 dark:text-white">
                       {regStepIndex === 0 &&
-                        (isRtl ? "ما هو اسمك؟" : "What's your name?")}
+                        (isRtl ? "ما هو اسمك بالكامل؟" : "What's your full name?")}
                       {regStepIndex === 1 &&
                         (isRtl
                           ? "ما هو مسماك الوظيفي؟"
                           : "What's your job title?")}
                       {regStepIndex === 2 &&
-                        (isRtl ? "في أي شركة تعمل؟" : "Where do you work?")}
+                        (isRtl ? "في أي شركة أو مؤسسة تعمل؟" : "Where do you work?")}
                       {regStepIndex === 3 &&
-                        (isRtl ? "نبذة قصيرة عنك" : "Write a short bio")}
+                        (isRtl ? "نبذة تعريفية عنك" : "Write a short bio")}
                     </h2>
                     <p className="mt-1 text-sm text-slate-500">
-                      {isRtl
-                        ? "سيتم إضافته لبطاقتك الرقمية (يمكنك تغييره لاحقاً)"
-                        : "This will be added to your digital card."}
+                      {regStepIndex === 0 &&
+                        (isRtl
+                          ? "صورتك الافتراضية ستكون بأول حرف من اسمك (يمكنك تغييرها لاحقاً)"
+                          : "Your default avatar will be your first initial (you can upload a photo later)")}
+                      {regStepIndex === 1 &&
+                        (isRtl
+                          ? "سيتم إضافته لبطاقتك الرقمية للتعريف بتخصصك"
+                          : "This will be displayed on your digital card")}
+                      {regStepIndex === 2 &&
+                        (isRtl
+                          ? "اسم الشركة أو الجهة التي تعمل بها أو نشاطك"
+                          : "Your company or organization name")}
+                      {regStepIndex === 3 &&
+                        (isRtl
+                          ? "مقدمة سريعة للتعريف بخبراتك في بطاقتك الشخصية"
+                          : "A brief summary for your digital card")}
                     </p>
                   </div>
 
                   <div className="space-y-3">
                     {regStepIndex === 0 && (
-                      <div className="relative flex items-center">
-                        <User className="absolute mx-3 h-5 w-5 text-slate-400" />
-                        <input
-                          type="text"
-                          required
-                          maxLength={50}
-                          value={formData.fullName}
-                          onChange={(e) => {
-                            setFormData({
-                              ...formData,
-                              fullName: e.target.value.replace(
-                                /<[^>]*>?/gm,
-                                "",
-                              ),
-                            });
-                            setError("");
-                          }}
-                          placeholder={t("fullNameRequired")}
-                          className={inputBase}
-                          autoFocus
-                        />
+                      <div className="space-y-4">
+                        {/* Live Avatar Preview (First letter of name) */}
+                        <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                          <div className="w-20 h-20 rounded-full border-4 border-indigo-500 shadow-md bg-indigo-600 flex items-center justify-center text-white text-3xl font-black select-none transition-all duration-200">
+                            {formData.fullName?.trim()
+                              ? Array.from(formData.fullName.trim())[0].toUpperCase()
+                              : "U"}
+                          </div>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">
+                            {isRtl ? "الصورة الافتراضية بأول حرف من اسمك" : "Default avatar with your first initial"}
+                          </span>
+                        </div>
+
+                        {/* Full Name Input */}
+                        <div className="relative flex items-center">
+                          <User className="absolute mx-3 h-5 w-5 text-slate-400" />
+                          <input
+                            type="text"
+                            required
+                            maxLength={50}
+                            value={formData.fullName}
+                            onChange={(e) => {
+                              setFormData({
+                                ...formData,
+                                fullName: e.target.value.replace(
+                                  /<[^>]*>?/gm,
+                                  "",
+                                ),
+                              });
+                              setError("");
+                            }}
+                            placeholder={isRtl ? "الاسم بالكامل (إجباري)" : "Full Name (Required)"}
+                            className={inputBase}
+                            autoFocus
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -434,21 +526,23 @@ export default function Auth({ t, language, onLogin, forceMode }) {
                         <User className="absolute mx-3 h-5 w-5 text-slate-400" />
                         <input
                           type="text"
+                          required
                           maxLength={100}
                           value={formData.jobTitle}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setFormData({
                               ...formData,
                               jobTitle: e.target.value.replace(
                                 /<[^>]*>?/gm,
                                 "",
                               ),
-                            })
-                          }
+                            });
+                            setError("");
+                          }}
                           placeholder={
                             isRtl
-                              ? "مثال: مدير تسويق"
-                              : "e.g. Marketing Manager"
+                              ? "المسمى الوظيفي (إجباري، مثال: مدير تسويق)"
+                              : "Job title (Required, e.g. Marketing Manager)"
                           }
                           className={inputBase}
                           autoFocus
@@ -461,16 +555,20 @@ export default function Auth({ t, language, onLogin, forceMode }) {
                         <User className="absolute mx-3 h-5 w-5 text-slate-400" />
                         <input
                           type="text"
+                          required
                           maxLength={100}
                           value={formData.company}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setFormData({
                               ...formData,
                               company: e.target.value.replace(/<[^>]*>?/gm, ""),
-                            })
-                          }
+                            });
+                            setError("");
+                          }}
                           placeholder={
-                            isRtl ? "مثال: شركة جوجل" : "e.g. Google Inc."
+                            isRtl
+                              ? "اسم الشركة أو مكان العمل (إجباري)"
+                              : "Company or workplace (Required)"
                           }
                           className={inputBase}
                           autoFocus
@@ -483,18 +581,20 @@ export default function Auth({ t, language, onLogin, forceMode }) {
                         <User className="absolute mx-3 mt-3.5 h-5 w-5 text-slate-400" />
                         <textarea
                           rows={3}
+                          required
                           maxLength={150}
                           value={formData.bio}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setFormData({
                               ...formData,
                               bio: e.target.value.replace(/<[^>]*>?/gm, ""),
-                            })
-                          }
+                            });
+                            setError("");
+                          }}
                           placeholder={
                             isRtl
-                              ? "اكتب نبذة مختصرة عنك وعن خبراتك..."
-                              : "Write a short bio about yourself..."
+                              ? "اكتب نبذة مختصرة عنك وعن خبراتك (إجباري)..."
+                              : "Write a short bio about yourself (Required)..."
                           }
                           className={`${inputBase} resize-none`}
                           autoFocus
@@ -506,10 +606,23 @@ export default function Auth({ t, language, onLogin, forceMode }) {
                   <ErrorNotice error={error} language={language} />
 
                   <div className="flex gap-2">
+                    {regStepIndex > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setError("");
+                          setRegStepIndex(regStepIndex - 1);
+                        }}
+                        disabled={isSubmitting}
+                        className="px-5 py-3.5 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      >
+                        {isRtl ? "السابق" : "Back"}
+                      </button>
+                    )}
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-bold text-white transition-all hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                      className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white transition-all hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                     >
                       {regStepIndex < 3
                         ? isRtl
@@ -519,25 +632,6 @@ export default function Auth({ t, language, onLogin, forceMode }) {
                           ? "إنهاء وإنشاء الحساب"
                           : "Finish & Create"}
                     </button>
-                    {regStepIndex > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (regStepIndex < 3) {
-                            setRegStepIndex(regStepIndex + 1);
-                          } else {
-                            // Skip the last step by submitting
-                            handleRegistrationSubmit({
-                              preventDefault: () => {},
-                            });
-                          }
-                        }}
-                        disabled={isSubmitting}
-                        className="px-6 py-3.5 text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-                      >
-                        {isRtl ? "تخطي" : "Skip"}
-                      </button>
-                    )}
                   </div>
                 </motion.form>
               )}

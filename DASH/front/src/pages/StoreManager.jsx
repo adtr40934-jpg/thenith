@@ -25,6 +25,7 @@ import {
   FileText,
   Edit3,
   CreditCard,
+  Sparkles,
 } from "lucide-react";
 import {
   fetchProducts,
@@ -201,11 +202,12 @@ function ShippingRateForm({ initial, onSave, onCancel, saving }) {
 
 function ProductForm({ initial, onSave, onCancel, saving, error }) {
   const getSafeForm = (init) => {
-    if (!init) return { name: { ar: "", en: "" }, description: { ar: "", en: "" }, images: [], price: 0, quantity: 0, sku: "", isActive: true };
+    if (!init) return { name: { ar: "", en: "" }, description: { ar: "", en: "" }, images: [], price: 0, quantity: 0, sku: "", isActive: true, isCustomizable: false };
     return {
       ...init,
       name: typeof init.name === 'string' ? { ar: init.name, en: init.name } : { ar: init.name?.ar || "", en: init.name?.en || "" },
-      description: typeof init.description === 'string' ? { ar: init.description, en: init.description } : { ar: init.description?.ar || "", en: init.description?.en || "" }
+      description: typeof init.description === 'string' ? { ar: init.description, en: init.description } : { ar: init.description?.ar || "", en: init.description?.en || "" },
+      isCustomizable: Boolean(init.isCustomizable),
     };
   };
   const [form, setForm] = useState(getSafeForm(initial));
@@ -350,6 +352,30 @@ function ProductForm({ initial, onSave, onCancel, saving, error }) {
                 </span>
               </label>
             </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-indigo-200 bg-indigo-50/60 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <span className="text-sm font-bold text-slate-800">
+                  منتج قابل للتخصيص (كارت بتصميم مخصص)
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                عند تفعيله، سيتم توجيه العميل إلى استوديو التصميم ثلاثي الأبعاد لتخصيص كارت الاسم واللوجو قبل الطلب.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer shrink-0 me-1">
+              <div
+                onClick={() => setForm({ ...form, isCustomizable: !form.isCustomizable })}
+                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${form.isCustomizable ? "bg-indigo-600" : "bg-slate-300"}`}
+              >
+                <div
+                  className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all shadow-sm ${form.isCustomizable ? "start-6" : "start-1"}`}
+                />
+              </div>
+            </label>
           </div>
         </div>
         <div className="space-y-4">
@@ -629,10 +655,117 @@ function OrderDetailsModal({ order, onClose }) {
               <tbody className="divide-y divide-slate-100">
                 {order.items?.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50">
-                    <td className="py-3 px-4 font-bold text-slate-700">{typeof item.name === 'string' ? parseLocalizedName(item.name) : item.name?.ar}</td>
-                    <td className="py-3 px-4 text-slate-600">{item.price} ج.م</td>
-                    <td className="py-3 px-4 text-indigo-600 font-bold">{item.quantity}x</td>
-                    <td className="py-3 px-4 font-bold text-slate-800">{item.price * item.quantity} ج.م</td>
+                    <td className="py-3 px-4 font-bold text-slate-700">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span>{typeof item.name === 'string' ? parseLocalizedName(item.name) : item.name?.ar}</span>
+                          {item.customDesign && (
+                            <span className="bg-indigo-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                              كارت مخصص
+                            </span>
+                          )}
+                        </div>
+                        {item.customDesign && (
+                          <div className="mt-2 flex flex-col gap-3 p-3 bg-slate-50 rounded-xl border border-indigo-100 text-xs">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                {item.customDesign.image && (
+                                  <a
+                                    href={item.customDesign.image}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block w-20 h-13 rounded-lg overflow-hidden border border-slate-300 shadow-xs shrink-0 hover:scale-105 transition-transform"
+                                    title="الوجه الأمامي"
+                                  >
+                                    <img
+                                      src={item.customDesign.image}
+                                      alt="Front Design"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </a>
+                                )}
+                                {item.customDesign.backImage && (
+                                  <a
+                                    href={item.customDesign.backImage}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block w-20 h-13 rounded-lg overflow-hidden border border-slate-300 shadow-xs shrink-0 hover:scale-105 transition-transform"
+                                    title="الوجه الخلفي"
+                                  >
+                                    <img
+                                      src={item.customDesign.backImage}
+                                      alt="Back Design"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </a>
+                                )}
+                                <div className="space-y-0.5 text-[11px]">
+                                  <p><span className="text-slate-500 font-medium">الاسم:</span> <span className="font-bold text-slate-800">{item.customDesign.name || "-"}</span></p>
+                                  {item.customDesign.jobTitle && (
+                                    <p><span className="text-slate-500 font-medium">الوظيفة:</span> <span className="font-bold text-slate-800">{item.customDesign.jobTitle}</span></p>
+                                  )}
+                                  {item.customDesign.font && (
+                                    <p><span className="text-slate-500 font-medium">الخط:</span> <span className="font-bold text-indigo-600">{item.customDesign.font}</span></p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {item.customDesign.image && (
+                                  <a
+                                    href={item.customDesign.image}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download="front_card_design.png"
+                                    className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[11px] font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1 shrink-0"
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                    <span>تحميل الوجه الأمامي</span>
+                                  </a>
+                                )}
+                                {item.customDesign.backImage && (
+                                  <a
+                                    href={item.customDesign.backImage}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download="back_card_design_with_qr.png"
+                                    className="px-2.5 py-1 bg-slate-800 text-white rounded-lg text-[11px] font-bold hover:bg-slate-900 transition-colors flex items-center gap-1 shrink-0"
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                    <span>تحميل الظهر (مدمج به الـ QR للطباعة)</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Generated Thenith Smart Card Credentials */}
+                            {item.customDesign.generatedCard && (
+                              <div className="w-full pt-2 border-t border-indigo-100 flex flex-col gap-2 text-[11px] bg-white p-2.5 rounded-lg border border-indigo-200">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                                      كارت ذكي مسجل: {item.customDesign.generatedCard.cardId}
+                                    </span>
+                                    <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                      كلمة السر: {item.customDesign.generatedCard.cardPassword}
+                                    </span>
+                                    <span className="text-indigo-600 font-mono text-[10px] bg-slate-50 px-2 py-0.5 rounded border">
+                                      {item.customDesign.generatedCard.cardUrl}
+                                    </span>
+                                  </div>
+                                  <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[10px] flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    الـ QR الذكي مدمج داخل تصميم الكارت جاهز للطباعة مباشرة
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-slate-600 align-top">{item.price} ج.م</td>
+                    <td className="py-3 px-4 text-indigo-600 font-bold align-top">{item.quantity}x</td>
+                    <td className="py-3 px-4 font-bold text-slate-800 align-top">{item.price * item.quantity} ج.م</td>
                   </tr>
                 ))}
               </tbody>
@@ -1301,6 +1434,11 @@ export default function StoreManager() {
                       {product.quantity === 0 && (
                         <div className="absolute top-2 start-2 z-10 px-2 py-1 bg-rose-500 text-white text-[10px] font-black rounded flex items-center gap-1">
                           <PackageX className="w-3 h-3" /> نفذت الكمية
+                        </div>
+                      )}
+                      {product.isCustomizable && (
+                        <div className="absolute top-2 end-2 z-10 px-2 py-1 bg-indigo-600 text-white text-[10px] font-black rounded flex items-center gap-1 shadow-sm border border-indigo-400">
+                          <Sparkles className="w-3 h-3 text-amber-300" /> كارت مخصص
                         </div>
                       )}
                       <div className="aspect-[4/3] bg-slate-100 relative">

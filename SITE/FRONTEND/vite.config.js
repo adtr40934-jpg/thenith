@@ -12,7 +12,7 @@ export default defineConfig({
     tailwindcss(),
     basicSsl(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectRegister: 'auto',
       scope: '/u/',
       manifest: {
@@ -38,7 +38,7 @@ export default defineConfig({
         ]
       },
       devOptions: {
-        enabled: true
+        enabled: false
       }
     })
   ],
@@ -68,11 +68,37 @@ export default defineConfig({
     sourcemap: false, // Do not generate sourcemaps for production to save space and time
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ["react", "react-dom", "react-router-dom"],
-          framer: ["framer-motion", "motion"],
-          lucide: ["lucide-react"],
-          axios: ["axios"],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (
+              id.includes("react-dom") ||
+              id.includes("react-router-dom") ||
+              id.includes("/react/")
+            ) {
+              return "vendor-react";
+            }
+            if (id.includes("framer-motion") || id.includes("/motion/")) {
+              return "vendor-motion";
+            }
+            if (id.includes("lucide-react")) {
+              return "vendor-lucide";
+            }
+            if (id.includes("@icons-pack/react-simple-icons")) {
+              return "vendor-simple-icons";
+            }
+            if (id.includes("sweetalert2")) {
+              return "vendor-swal";
+            }
+            if (id.includes("html5-qrcode") || id.includes("qrcode.react")) {
+              return "vendor-qr";
+            }
+            if (id.includes("react-phone-number-input")) {
+              return "vendor-phone";
+            }
+            if (id.includes("axios")) {
+              return "vendor-axios";
+            }
+          }
         },
       },
     },

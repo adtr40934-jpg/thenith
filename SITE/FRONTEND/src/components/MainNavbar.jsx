@@ -30,9 +30,9 @@ export default function MainNavbar() {
   const shouldHideNavbar =
     location.pathname.startsWith("/u") ||
     location.pathname.startsWith("/p/") ||
+    location.pathname.startsWith("/c/") ||
     location.pathname === "/login" ||
     location.pathname === "/signup";
-
 
   if (shouldHideNavbar) return null;
 

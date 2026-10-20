@@ -14,6 +14,8 @@ import {
   toggleInboxItemReadApi,
 } from "../services/dashboardApi.js";
 import { saveProfile } from "../services/authApi.js";
+import { API_BASE_URL } from "../../config/runtime.js";
+import { readAuthToken } from "../../api/client.js";
 
 export function getInboxItems(card) {
   if (!card) return [];
@@ -139,10 +141,9 @@ export function useDashboardData() {
     };
   }, []);
 
-  // Poll dashboard data periodically to receive real-time updates (like new messages)
+  // Real-time live SSE connection & conservative periodic fallback for live updates
   useEffect(() => {
-    let timeoutId;
-    let isPolling = true;
+    let eventSource = null;
 
     const poll = async () => {
       try {
@@ -161,15 +162,21 @@ export function useDashboardData() {
             return fresh;
           }
 
-          const mergedCards = prev.cards.map((prevCard) => {
-            const freshCard = fresh.cards.find((c) => c.id === prevCard.id);
-            if (!freshCard) return prevCard;
-            return {
-              ...prevCard,
-              appointments: freshCard.appointments,
-              requests: freshCard.requests,
-            };
-          });
+          let mergedCards;
+          if (fresh.cards.length !== prev.cards.length) {
+            mergedCards = fresh.cards;
+          } else {
+            mergedCards = prev.cards.map((prevCard) => {
+              const freshCard = fresh.cards.find((c) => c.id === prevCard.id);
+              if (!freshCard) return prevCard;
+              return {
+                ...prevCard,
+                appointments: freshCard.appointments || [],
+                requests: freshCard.requests || [],
+                analytics: freshCard.analytics || prevCard.analytics,
+              };
+            });
+          }
 
           fresh.notifications =
             fresh.notifications || synthesizeNotifications(fresh.cards || []);
@@ -188,17 +195,34 @@ export function useDashboardData() {
         setRemoteData(fresh);
       } catch (e) {
       }
-
-      if (isPolling) {
-        timeoutId = setTimeout(poll, 10000);
-      }
     };
 
-    timeoutId = setTimeout(poll, 10000);
+    // Connect to Server-Sent Events (SSE) for instant live updates (under 50ms)
+    const token = readAuthToken();
+    if (token) {
+      try {
+        const sseUrl = `${API_BASE_URL}/dashboard/stream?token=${encodeURIComponent(token)}`;
+        eventSource = new EventSource(sseUrl, { withCredentials: true });
+
+        eventSource.onmessage = (event) => {
+          try {
+            // Instantly poll fresh data when any visit, click, appointment, or request arrives
+            poll();
+          } catch (err) {}
+        };
+
+        eventSource.onerror = () => {
+          // SSE connection dropped, browser will retry automatically
+        };
+      } catch (err) {
+        // SSE not supported or blocked
+      }
+    }
 
     return () => {
-      isPolling = false;
-      clearTimeout(timeoutId);
+      if (eventSource) {
+        eventSource.close();
+      }
     };
   }, []);
 

@@ -40,6 +40,15 @@ const uploadBase64 = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Image must be between 1 byte and 10 MB" });
   }
 
+  const isJpeg = buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+  const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+  const isWebp = buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP";
+  const isGif = buffer.length >= 4 && buffer.toString("ascii", 0, 3) === "GIF";
+
+  if (!isJpeg && !isPng && !isWebp && !isGif) {
+    return res.status(400).json({ message: "Only valid image files (JPEG, PNG, WebP, GIF) are supported" });
+  }
+
   try {
     const userId = req.user._id.toString();
     const folder = field === "cover" ? "thenith/covers" : "thenith/avatars";

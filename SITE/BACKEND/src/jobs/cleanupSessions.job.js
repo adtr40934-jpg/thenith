@@ -7,15 +7,10 @@ async function cleanupSessions() {
   return result.deletedCount;
 }
 
-async function startSessionCleanupJob() {
+function startSessionCleanupJob() {
   const run = async () => {
     try {
-      const deletedCount = await cleanupSessions();
-      if (deletedCount) {
-        console.log(
-          `[Job:cleanupSessions] Deleted ${deletedCount} refresh sessions.`,
-        );
-      }
+      await cleanupSessions();
     } catch (error) {
     }
   };
@@ -25,8 +20,7 @@ async function startSessionCleanupJob() {
   return () => clearInterval(interval);
 }
 
-
 export default {
   cleanupSessions,
-  startSessionCleanupJob
+  startSessionCleanupJob,
 };

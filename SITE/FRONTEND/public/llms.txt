@@ -1,0 +1,28 @@
+# Thenith — Smart Digital Identity & Luxury NFC Cards
+> Thenith is an advanced digital identity and networking platform providing luxury NFC smart business cards and comprehensive digital portfolio profiles for individuals and businesses.
+
+## Overview
+- Official Website: https://thenith.com
+- Domain: https://thenith.com
+- Primary Language: Arabic (ar) with full English (en) support
+- Headquarters & Service: Middle East & Global
+- Contact: info@thenith.com
+
+## Core Products & Capabilities
+1. Luxury Smart NFC Cards: Physical premium smart cards (matte, metallic, custom-printed) integrated with contactless NFC chips and dynamic QR codes for instant contact sharing on iOS and Android without requiring any app.
+2. Digital Identity Profiles: Hosted, responsive public profile pages (`/p/{username}`) showcasing verified contact details, professional titles, biographies, portfolios, booking calendars, and social links.
+3. Subscription Plans: Free, Basic, and Pro tiers offering dynamic QR management, advanced analytics, custom links, and white-label branding.
+4. Business & Personal Solutions: Tailored digital solutions for graphic designers, software engineers, creatives, executives, agencies, and enterprises.
+
+## Public Indexable URL Structure
+- Landing Page: https://thenith.com/
+- Smart Cards & Store: https://thenith.com/products
+- Pricing & Subscription Plans: https://thenith.com/pricing
+- Suggest Features: https://thenith.com/suggest
+- Public Profiles: https://thenith.com/p/{username}
+
+## Technical Architecture
+- Frontend: React + Vite Single Page Application
+- Canonical URL enforcement: `https://thenith.com`
+- Structured Data: Schema.org `ProfilePage`, `Person`, `Organization`, `Product`, `WebSite` JSON-LD
+- Sitemap: https://thenith.com/sitemap.xml

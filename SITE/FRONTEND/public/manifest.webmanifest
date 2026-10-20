@@ -1,0 +1,22 @@
+{
+  "name": "Thenith",
+  "short_name": "Thenith",
+  "description": "Manage your Thenith digital cards and products",
+  "theme_color": "#4f46e5",
+  "background_color": "#f8fafc",
+  "display": "standalone",
+  "scope": "/u/",
+  "start_url": "/u/",
+  "icons": [
+    {
+      "src": "/icon192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

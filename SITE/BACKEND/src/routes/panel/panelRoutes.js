@@ -16,7 +16,7 @@ import _asyncHandler from "../../util/asyncHandler.js";
 const { asyncHandler } = _asyncHandler;
 import _httpError from "../../util/httpError.js";
 const { HttpError } = _httpError;
-import User from "../../models/User.js";
+import User, { emailLookup } from "../../models/User.js";
 import Card from "../../models/Card.js";
 import Order from "../../models/Order.js";
 import Subscription from "../../models/Subscription.js";
@@ -45,6 +45,7 @@ router.get(
       profile: {
         name: user.name || "",
         email: user.email || "",
+        gender: user.gender || "male",
         secondaryEmails: user.secondaryEmails || [],
         phone: user.phone || "",
         address: user.address || "",
@@ -105,6 +106,7 @@ router.patch(
       profile: {
         name: user.name || "",
         email: user.email || "",
+        gender: user.gender || "male",
         secondaryEmails: user.secondaryEmails || [],
         phone: user.phone || "",
         address: user.address || "",
@@ -127,9 +129,7 @@ router.post(
     if ((user.secondaryEmails || []).length >= 1) {
       throw new HttpError(409, "Only one secondary email can be added");
     }
-    const emailInUse = await User.exists({
-      $or: [{ email }, { secondaryEmails: email }],
-    });
+    const emailInUse = await User.exists(emailLookup(email));
     if (emailInUse) throw new HttpError(409, "Email is already in use");
 
     const current = await OtpCode.findOne({
@@ -186,9 +186,7 @@ router.post(
     if ((user.secondaryEmails || []).length >= 1) {
       throw new HttpError(409, "Only one secondary email can be added");
     }
-    const emailInUse = await User.exists({
-      $or: [{ email }, { secondaryEmails: email }],
-    });
+    const emailInUse = await User.exists(emailLookup(email));
     if (emailInUse) throw new HttpError(409, "Email is already in use");
     user.secondaryEmails = [...(user.secondaryEmails || []), email];
     await user.save();
@@ -269,9 +267,7 @@ router.get(
   "/links",
   asyncHandler(async (request, response) => {
     const user = request.user;
-    const card = user.activeCardId
-      ? await Card.findOne({ _id: user.activeCardId, userId: user._id })
-      : await Card.findOne({ userId: user._id }).sort({ createdAt: 1 });
+    const card = await Card.findActiveForUser(user._id, user.activeCardId);
 
     if (!card) {
       return response.json({ links: [] });
@@ -302,9 +298,7 @@ router.patch(
       );
     }
 
-    const card = user.activeCardId
-      ? await Card.findOne({ _id: user.activeCardId, userId: user._id })
-      : await Card.findOne({ userId: user._id }).sort({ createdAt: 1 });
+    const card = await Card.findActiveForUser(user._id, user.activeCardId);
 
     if (!card) {
       throw new HttpError(404, "No active card found");

@@ -15,7 +15,7 @@ export default function SocialLinkCard({
 
   const handleClick = () => {
     if (profile?.id) {
-      trackClick(profile.id, social.url).catch(console.error);
+      trackClick(profile.id, social.url).catch(() => {});
     }
   };
 

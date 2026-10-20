@@ -80,6 +80,18 @@ const adminLoginRateLimit = rateLimit({
   },
 });
 
+const webhookRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    error: {
+      code: "TOO_MANY_REQUESTS",
+      message: "Too many webhook requests",
+    },
+  },
+});
 
 export default {
   authRateLimit,
@@ -87,5 +99,6 @@ export default {
   publicRequestRateLimit,
   supportRateLimit,
   analyticsRateLimit,
-  adminLoginRateLimit
+  adminLoginRateLimit,
+  webhookRateLimit,
 };

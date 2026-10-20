@@ -36,6 +36,7 @@ import {
   KeyRound,
   Shield,
   QrCode,
+  X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import ErrorNotice from "../components/ErrorNotice.jsx";
@@ -44,6 +45,7 @@ import GlobalLogo from "../components/GlobalLogo.jsx";
 import { useGlobalLanguage } from "../context/GlobalLanguageContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import UnifiedPaymentBox from "../panel/components/dashboard/UnifiedPaymentBox.jsx";
+import { toast } from "../util/toast";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -120,18 +122,20 @@ function getWalletUssdCode(number) {
   return null;
 }
 
-function WalletCountdown({ expireDate, onExpire, isArabic }) {
+function WalletCountdown({ expireDate, isArabic }) {
   const [timeLeft, setTimeLeft] = React.useState("");
+  const [isExpired, setIsExpired] = React.useState(false);
 
   React.useEffect(() => {
     const updateCountdown = () => {
       const now = Date.now();
       const diff = new Date(expireDate).getTime() - now;
       if (diff <= 0) {
-        setTimeLeft(isArabic ? "انتهى الوقت" : "Expired");
-        onExpire();
+        setIsExpired(true);
+        setTimeLeft(isArabic ? "انتهت الصلاحية" : "Expired");
         return;
       }
+      setIsExpired(false);
       const m = Math.floor(diff / 60000);
       const s = Math.floor((diff % 60000) / 1000);
       setTimeLeft(`${m}:${s.toString().padStart(2, "0")}`);
@@ -139,10 +143,18 @@ function WalletCountdown({ expireDate, onExpire, isArabic }) {
     updateCountdown();
     const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
-  }, [expireDate, onExpire, isArabic]);
+  }, [expireDate, isArabic]);
+
+  if (isExpired) {
+    return (
+      <span className="font-mono bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-800 text-xs font-bold">
+        {timeLeft}
+      </span>
+    );
+  }
 
   return (
-    <span className="font-mono bg-rose-50 text-rose-600 px-2 py-0.5 rounded border border-rose-200">
+    <span className="font-mono bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800 font-bold">
       {timeLeft}
     </span>
   );
@@ -176,7 +188,7 @@ function InteractiveCreditCard({
   }`;
 
   return (
-    <div className="w-full max-w-[380px] h-[215px] mx-auto mb-6 perspective-1000 select-none">
+    <div className="w-full max-w-[360px] aspect-[1.586/1] mx-auto mb-6 perspective-1000 select-none">
       <motion.div
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{
@@ -190,7 +202,7 @@ function InteractiveCreditCard({
       >
         {/* FRONT OF CARD */}
         <div
-          className="absolute inset-0 rounded-2xl p-5 text-white flex flex-col justify-between overflow-hidden shadow-2xl backface-hidden"
+          className="absolute inset-0 rounded-2xl p-4 sm:p-5 text-white flex flex-col justify-between overflow-hidden shadow-2xl backface-hidden"
           style={{
             background:
               "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%)",
@@ -206,14 +218,14 @@ function InteractiveCreditCard({
           <div className="flex items-center justify-between relative z-10">
             {/* EMV Chip & Contactless */}
             <div className="flex items-center gap-2">
-              <div className="w-11 h-8 rounded-md bg-gradient-to-br from-amber-200 via-amber-400 to-amber-500 p-0.5 shadow-md flex items-center justify-center">
+              <div className="w-9 h-7 sm:w-11 sm:h-8 rounded-md bg-gradient-to-br from-amber-200 via-amber-400 to-amber-500 p-0.5 shadow-md flex items-center justify-center">
                 <div className="w-full h-full border border-amber-600/40 rounded grid grid-cols-2 gap-0.5 p-0.5">
                   <div className="border-r border-amber-600/40" />
                   <div />
                 </div>
               </div>
               <svg
-                className="w-5 h-5 text-amber-200/80 rotate-90"
+                className="w-4 h-4 sm:w-5 sm:h-5 text-amber-200/80 rotate-90"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -228,23 +240,23 @@ function InteractiveCreditCard({
             {/* Brand Logo */}
             <div className="text-right">
               {brand === "visa" && (
-                <span className="font-black italic text-2xl tracking-wider text-white drop-shadow">
+                <span className="font-black italic text-xl sm:text-2xl tracking-wider text-white drop-shadow">
                   VISA
                 </span>
               )}
               {brand === "mastercard" && (
                 <div className="flex items-center -space-x-2">
-                  <div className="w-6 h-6 rounded-full bg-rose-500/90 shadow-sm" />
-                  <div className="w-6 h-6 rounded-full bg-amber-400/90 shadow-sm" />
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-rose-500/90 shadow-sm" />
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-400/90 shadow-sm" />
                 </div>
               )}
               {brand === "meeza" && (
-                <span className="font-black tracking-widest text-lg text-emerald-400">
+                <span className="font-black tracking-widest text-base sm:text-lg text-emerald-400">
                   MEEZA
                 </span>
               )}
               {brand === "generic" && (
-                <span className="text-xs font-bold text-slate-300 tracking-wider">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-300 tracking-wider">
                   DEBIT / CREDIT
                 </span>
               )}
@@ -252,8 +264,8 @@ function InteractiveCreditCard({
           </div>
 
           {/* Card Number */}
-          <div className="relative z-10 py-1">
-            <p className="font-mono text-lg sm:text-xl font-bold tracking-widest text-slate-100 drop-shadow-sm text-center">
+          <div className="relative z-10 py-0.5 sm:py-1">
+            <p className="font-mono text-[clamp(0.85rem,4.2vw,1.25rem)] font-bold tracking-wider sm:tracking-widest text-slate-100 drop-shadow-sm text-center truncate">
               {grouped}
             </p>
           </div>
@@ -329,11 +341,26 @@ export default function PaymentPage({ overrideParams, onClose }) {
   const isArabic = language === "ar" || !language;
 
   // URL params
-  const paymentType = params.get("type"); // "subscription" | "order"
+  const paymentType = params.get("type"); // "subscription" | "order" | "intent"
   const planId = params.get("planId");
-  const billingPeriod = params.get("billingPeriod");
+  const billingPeriod = params.get("billingPeriod") || "monthly";
   const couponCode = params.get("couponCode") || "";
   const orderId = params.get("orderId");
+  const idParam = params.get("id");
+  const intentKeyParam = params.get("intentKey");
+
+  const invoiceTargetId = paymentType === "subscription" 
+    ? (planId || idParam) 
+    : (orderId || idParam || (paymentType === "intent" ? intentKeyParam : null));
+
+  let effectiveType = paymentType;
+  let effectiveId = invoiceTargetId;
+
+  if (!effectiveType && intentKeyParam) {
+    effectiveType = "intent";
+    effectiveId = intentKeyParam;
+  }
+
   const periodLabel =
     billingPeriod === "yearly"
       ? isArabic
@@ -343,7 +370,7 @@ export default function PaymentPage({ overrideParams, onClose }) {
         ? "شهري"
         : "Monthly";
 
-  // Invoice State (from Backend)
+  // Invoice State (from Backend Database - Single Source of Truth)
   const [invoice, setInvoice] = useState(null);
   const amount = invoice?.amount 
     ? invoice.amount 
@@ -362,27 +389,59 @@ export default function PaymentPage({ overrideParams, onClose }) {
   const [error, setError] = useState("");
   const [directResult, setDirectResult] = useState(null);
   const [iframeUrl, setIframeUrl] = useState(null);
+  const [activeCardIntentKey, setActiveCardIntentKey] = useState(null);
   const [countdown, setCountdown] = useState(null);
+  const [copiedFawry, setCopiedFawry] = useState(false);
 
-  // Check pending payments and methods on mount
+  // Check pending payments and methods on mount with strict user validation
   useEffect(() => {
     let mounted = true;
+
+    const invoicePromise = (effectiveType && (effectiveId || intentKeyParam))
+      ? api.payment
+          .getInvoiceDetails(
+            effectiveType,
+            effectiveId || intentKeyParam,
+            billingPeriod,
+            couponCode,
+            intentKeyParam || undefined
+          )
+          .then((res) => ({ ok: true, data: res }))
+          .catch((err) => ({ ok: false, error: err }))
+      : Promise.resolve(null);
 
     Promise.all([
       api.payment.getMethods().catch(() => ({ methods: [] })),
       api.payment.getPending().catch(() => ({ subscriptions: [], orders: [] })),
-      (paymentType && (orderId || planId)) 
-        ? api.payment.getInvoiceDetails(paymentType, orderId || planId, billingPeriod, couponCode).catch(() => null)
-        : Promise.resolve(null)
-    ]).then(([methodsRes, pendingRes, invoiceRes]) => {
+      invoicePromise,
+    ]).then(async ([methodsRes, pendingRes, invoiceRes]) => {
       if (!mounted) return;
 
-      // 1. Set Invoice Details
-      if (invoiceRes?.data) {
-        setInvoice(invoiceRes.data);
-      } else if (paymentType && (orderId || planId)) {
-        // Invoice fetch failed or not found, redirect to home
+      // 1. Check Invoice Fetch Result & Ownership
+      if (invoiceRes && !invoiceRes.ok) {
+        const err = invoiceRes.error;
+        const errMsg =
+          err?.response?.data?.error ||
+          err?.message ||
+          (isArabic
+            ? "رابط الدفع هذا غير صالح أو غير مخصص لحسابك الحالي. يجب إعادة عملية الشراء من البداية."
+            : "This payment link is invalid or not associated with your account. Please restart the purchase from the beginning.");
+        toast.error(errMsg);
         navigate("/", { replace: true });
+        return;
+      }
+
+      const invoiceData = invoiceRes?.data?.data || invoiceRes?.data;
+      if (invoiceRes?.data?.alreadyPaid || invoiceData?.alreadyPaid || invoiceData?.status === "paid") {
+        toast.success(
+          isArabic
+            ? "تم سداد هذا الطلب بالفعل بنجاح."
+            : "This order has already been paid successfully."
+        );
+        navigate(
+          `/payment/success?type=${effectiveType || "order"}&id=${effectiveId || ""}&intentKey=${intentKeyParam || ""}`,
+          { replace: true }
+        );
         return;
       }
 
@@ -390,18 +449,119 @@ export default function PaymentPage({ overrideParams, onClose }) {
       const list = methodsRes.methods || [];
       setMethods(list);
 
-      // 3. Set Pending if exists
-      const { subscriptions, orders } = pendingRes;
-      const allPending = [...(subscriptions || []), ...(orders || [])];
+      // 3. Set Pending if exists (exclude card payments, as cards are instant and not resumable)
+      const { subscriptions, orders } = pendingRes || {};
+      const allPending = [...(subscriptions || []), ...(orders || [])].filter((p) => {
+        const tx = p?.transaction || p;
+        if (!tx) return false;
+        if (tx.paymentMethodId === 2) return false;
+        const name = `${tx.paymentMethodName || p.paymentMethod || ""}`.toLowerCase();
+        return (
+          !name.includes("visa") &&
+          !name.includes("mastercard") &&
+          !name.includes("card") &&
+          !name.includes("فيزا") &&
+          !name.includes("بطاق")
+        );
+      });
+
+      // 4. Verify intentKey ownership if present in URL
+      if (intentKeyParam) {
+        const inUserPending = allPending.some((p) => p.transaction?.intentKey === intentKeyParam);
+        const inInvoice = invoiceData?.transaction?.intentKey === intentKeyParam;
+
+        if (!inUserPending && !inInvoice) {
+          // Check if already paid by this user
+          try {
+            const checkPaid = await api.payment.verify(intentKeyParam);
+            if (mounted && checkPaid.success && checkPaid.status === "paid") {
+              navigate(
+                `/payment/success?type=${checkPaid.type || effectiveType || "subscription"}&intentKey=${intentKeyParam}`,
+                { replace: true },
+              );
+              return;
+            }
+          } catch (err) {
+            // If verify failed with 403 Forbidden (different user) or 404
+            toast.error(
+              err?.response?.data?.error ||
+              (isArabic
+                ? "رابط الدفع هذا غير صالح أو غير مخصص لحسابك الحالي. يجب إعادة عملية الشراء من البداية."
+                : "This payment link is invalid or not associated with your account. Please restart the purchase from the beginning.")
+            );
+            navigate("/", { replace: true });
+            return;
+          }
+
+          // If not in pending, not in invoice, and not paid -> invalid link!
+          toast.error(
+            isArabic
+              ? "رابط الدفع هذا غير صالح أو غير مخصص لحسابك الحالي. يجب إعادة عملية الشراء من البداية."
+              : "This payment link is invalid or not associated with your account. Please restart the purchase from the beginning."
+          );
+          navigate("/", { replace: true });
+          return;
+        }
+      }
+
+      // If user navigated to /payment with no params and has no pending payments -> redirect to home
+      if (!effectiveType && !effectiveId && !intentKeyParam && allPending.length === 0) {
+        navigate("/", { replace: true });
+        return;
+      }
+
+      // If already Pro user with no pending subscriptions, return to dashboard
+      if (
+        effectiveType === "subscription" &&
+        user?.subscription?.plan === "pro" &&
+        allPending.length === 0
+      ) {
+        navigate("/u", { replace: true });
+        return;
+      }
+
       let foundPending = false;
+      let matchedPendingItem = null;
 
       if (allPending.length > 0) {
-        const pendingItem = allPending[0];
-        const tx = pendingItem.transaction;
+        if (intentKeyParam) {
+          matchedPendingItem = allPending.find(
+            (p) => p.transaction?.intentKey === intentKeyParam,
+          );
+        } else if (effectiveType === "subscription") {
+          matchedPendingItem =
+            allPending.find(
+              (p) =>
+                (p.type === "subscription" || p.planId) &&
+                (!planId ||
+                  String(p.planId?._id || p.planId) === String(planId)),
+            ) || allPending.find((p) => p.type === "subscription" || p.planId);
+        } else if (effectiveType === "order") {
+          matchedPendingItem =
+            allPending.find(
+              (p) =>
+                (p.type === "order" || p.orderNumber) &&
+                (!orderId || String(p._id) === String(orderId)),
+            ) || allPending.find((p) => p.type === "order" || p.orderNumber);
+        } else {
+          matchedPendingItem = allPending[0];
+        }
+
+        const tx = matchedPendingItem?.transaction || invoiceData?.transaction;
         if (tx) {
+          const fawryVal =
+            tx.paymentData?.fawryCode ||
+            tx.paymentData?.fawry_code ||
+            tx.paymentData?.referenceNumber ||
+            tx.paymentData?.payment_data?.fawryCode ||
+            tx.paymentData?.payment_data?.referenceNumber ||
+            tx.fawaterakResponse?.payment_data?.fawryCode ||
+            tx.fawaterakResponse?.payment_data?.referenceNumber;
+
+          const isFawryTx = Boolean(tx.paymentMethodId === 3 || fawryVal);
           const methodId =
             tx.paymentMethodId ||
-            (tx.paymentData?.fawryCode
+            (isFawryTx
               ? 3
               : tx.paymentData?.meezaQrCode ||
                   tx.paymentData?.isoQr ||
@@ -426,24 +586,97 @@ export default function PaymentPage({ overrideParams, onClose }) {
                   : "Online"),
             payment_method_id: methodId,
           };
+          const mergedPaymentData = {
+            ...(tx.paymentData || {}),
+            ...(fawryVal ? { fawryCode: fawryVal } : {}),
+          };
           setDirectResult({
             createdAt: tx.createdAt,
-            paymentData: tx.paymentData,
+            paymentData: mergedPaymentData,
             intentKey: tx.intentKey,
             amount: tx.amount,
             method: methodObj,
-            returnedId: pendingItem._id,
-            orderNumber: pendingItem.orderNumber,
+            returnedId: matchedPendingItem?._id || invoiceData?.id || invoiceData?.orderId,
+            orderNumber: matchedPendingItem?.orderNumber || invoiceData?.orderNumber,
             transactionId:
               tx.fawaterakResponse?.transaction_id ||
               tx.fawaterakResponse?.invoice_id,
             type:
-              pendingItem.type ||
-              (pendingItem.planId ? "subscription" : "order"),
+              matchedPendingItem?.type ||
+              (matchedPendingItem?.planId ? "subscription" : effectiveType || "order"),
           });
           setSelectedMethod(methodObj);
+          if (tx.paymentData?.customerMobile) {
+            setWalletNumber(tx.paymentData.customerMobile);
+          }
           foundPending = true;
         }
+      } else if (invoiceData?.transaction) {
+        // Active pending transaction returned directly from invoice query
+        const tx = invoiceData.transaction;
+        const fawryVal =
+          tx.paymentData?.fawryCode ||
+          tx.paymentData?.fawry_code ||
+          tx.paymentData?.referenceNumber ||
+          tx.paymentData?.payment_data?.fawryCode ||
+          tx.paymentData?.payment_data?.referenceNumber ||
+          tx.fawaterakResponse?.payment_data?.fawryCode ||
+          tx.fawaterakResponse?.payment_data?.referenceNumber;
+
+        const isFawryTx = Boolean(tx.paymentMethodId === 3 || fawryVal);
+        const methodId =
+          tx.paymentMethodId ||
+          (isFawryTx ? 3 : 4);
+        const methodObj = {
+          name_ar: tx.paymentMethodName || (methodId === 4 ? "محفظة إلكترونية" : "فوري"),
+          name_en: tx.paymentMethodName || (methodId === 4 ? "Mobile Wallet" : "Fawry"),
+          payment_method_id: methodId,
+        };
+        const mergedPaymentData = {
+          ...(tx.paymentData || {}),
+          ...(fawryVal ? { fawryCode: fawryVal } : {}),
+        };
+        setDirectResult({
+          createdAt: tx.createdAt,
+          paymentData: mergedPaymentData,
+          intentKey: tx.intentKey,
+          amount: tx.amount,
+          method: methodObj,
+          returnedId: invoiceData.id || invoiceData.orderId,
+          orderNumber: invoiceData.orderNumber,
+          transactionId:
+            tx.fawaterakResponse?.transaction_id ||
+            tx.fawaterakResponse?.invoice_id,
+          type: effectiveType || "order",
+        });
+        setSelectedMethod(methodObj);
+        if (tx.paymentData?.customerMobile) {
+          setWalletNumber(tx.paymentData.customerMobile);
+        }
+        foundPending = true;
+      }
+
+      // 5. Set Invoice Details from Database (single source of truth)
+      if (invoiceData) {
+        setInvoice(invoiceData);
+      } else if (foundPending && matchedPendingItem?.transaction) {
+        const tx = matchedPendingItem.transaction;
+        const planName =
+          typeof matchedPendingItem.planId?.name === "object"
+            ? (matchedPendingItem.planId.name[isArabic ? "ar" : "en"] || matchedPendingItem.planId.name.ar)
+            : (matchedPendingItem.planId?.name || "Pro");
+        setInvoice({
+          id: matchedPendingItem._id,
+          orderNumber: matchedPendingItem.orderNumber || null,
+          name: planName,
+          amount: tx.amount,
+          items: matchedPendingItem.items || [],
+          customer: matchedPendingItem.customer || null,
+        });
+      } else if (effectiveType && (orderId || planId)) {
+        // Invoice fetch failed and no pending transaction, redirect to home
+        navigate("/", { replace: true });
+        return;
       }
 
       if (!foundPending && list.length > 0 && !selectedMethod) {
@@ -472,28 +705,13 @@ export default function PaymentPage({ overrideParams, onClose }) {
           if (res.type === "store" || res.type === "order") {
             clearCart();
           }
-          setDirectResult((prev) => ({
-            ...prev,
-            paid: true,
-            transactionId: res.transactionId || prev.intentKey,
-            orderNumber: res.orderNumber,
-            amount: res.amount || prev.amount,
-            method: {
-              ...prev.method,
-              name_ar: res.paymentMethodName || prev.method?.name_ar,
-            },
-          }));
-          // Dispatch notification based on payment type
-          const isSubPayment = paymentType === "subscription";
-          window.dispatchEvent(new CustomEvent("dashboard-action", {
-            detail: {
-              type: isSubPayment ? "subscription_created" : "order_created",
-              title: isSubPayment
-                ? (isArabic ? "تم تفعيل اشتراكك بنجاح 🎉" : "Subscription activated successfully 🎉")
-                : (isArabic ? "تم تأكيد دفع طلبك بنجاح" : "Order payment confirmed successfully"),
-            },
-          }));
-          setCountdown(5);
+          const targetType = directResult.type || paymentType || "subscription";
+          const targetId = directResult.returnedId || "";
+          navigate(
+            `/payment/success?type=${targetType}&id=${targetId}&intentKey=${directResult.intentKey}`,
+            { replace: true },
+          );
+          return;
         }
       } catch (err) {
         // Ignore polling errors
@@ -592,6 +810,7 @@ export default function PaymentPage({ overrideParams, onClose }) {
       const redirectUrl = result.checkoutUrl || result.paymentData?.redirectTo;
       if (redirectUrl) {
         if (isCard(selectedMethod)) {
+          setActiveCardIntentKey(result.intentKey);
           setIframeUrl(redirectUrl);
           return;
         } else {
@@ -603,6 +822,11 @@ export default function PaymentPage({ overrideParams, onClose }) {
 
       // Direct dispatch (Meeza, Wallets, Fawry without redirect)
       if (result.paymentData || (!result.checkoutUrl && result.invoiceInfo)) {
+        if (result.intentKey) {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set("intentKey", result.intentKey);
+          window.history.replaceState({}, "", newUrl.toString());
+        }
         setDirectResult({
           paymentData: result.paymentData,
           invoiceInfo: result.invoiceInfo,
@@ -742,52 +966,103 @@ export default function PaymentPage({ overrideParams, onClose }) {
                   </div>
                 ) : (
                   <>
-                    {directResult.paymentData?.fawryCode ? (
-                      <>
-                        <h4 className="text-indigo-900 dark:text-indigo-100 font-bold mb-2 text-sm">
-                          {isArabic
-                            ? "كود الدفع المرجعي (فوري)"
-                            : "Fawry Reference Code"}
-                        </h4>
-                        <p className="text-4xl font-black text-indigo-700 dark:text-indigo-400 tracking-[0.25em] font-mono py-4 bg-white dark:bg-slate-900 rounded-xl border-2 border-indigo-200 dark:border-indigo-800 shadow-inner mx-auto w-fit px-8 mb-4">
-                          {directResult.paymentData.fawryCode}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mx-auto mb-3">
-                          <Phone className="w-6 h-6 text-indigo-600 dark:text-indigo-400 animate-pulse" />
-                        </div>
-                        <h4 className="text-indigo-900 dark:text-indigo-100 font-bold mb-4">
-                          {isArabic
-                            ? "بانتظار التأكيد من المحفظة"
-                            : "Pending Wallet Confirmation"}
-                        </h4>
+                    {(() => {
+                      const activeFawryCode =
+                        directResult.paymentData?.fawryCode ||
+                        directResult.paymentData?.fawry_code ||
+                        directResult.paymentData?.referenceNumber ||
+                        directResult.paymentData?.payment_data?.fawryCode ||
+                        directResult.paymentData?.payment_data?.referenceNumber ||
+                        directResult.invoiceInfo?.payment_data?.fawryCode ||
+                        directResult.invoiceInfo?.payment_data?.referenceNumber;
 
-                        {walletQrCode && (
-                          <div className="flex flex-col items-center justify-center mb-6 p-5 bg-white dark:bg-slate-900 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/80 w-fit mx-auto shadow-md relative overflow-hidden">
-                            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-400 to-indigo-600"></div>
-                            <div className="flex items-center gap-2 mb-4 text-indigo-900 dark:text-indigo-100 font-bold text-sm bg-indigo-50 dark:bg-indigo-900/30 px-4 py-1.5 rounded-full">
-                              <QrCode className="w-4 h-4" />
-                              <span>
+                      const isFawryActive = Boolean(
+                        activeFawryCode ||
+                        directResult.method?.payment_method_id === 3 ||
+                        directResult.method?.name_en?.toLowerCase().includes("fawry") ||
+                        directResult.method?.name_ar?.includes("فوري")
+                      );
+
+                      if (isFawryActive && activeFawryCode) {
+                        return (
+                          <div className="w-full max-w-sm mx-auto mb-4 bg-white dark:bg-slate-900 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/80 p-3 sm:p-4 shadow-sm overflow-hidden">
+                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-indigo-50 dark:border-slate-800 gap-2">
+                              <h4 className="text-indigo-900 dark:text-indigo-100 font-bold text-xs sm:text-sm truncate">
                                 {isArabic
-                                  ? "امسح الكود عبر تطبيق محفظتك"
-                                  : "Scan Code via Wallet App"}
-                              </span>
+                                  ? "كود الدفع المرجعي (فوري)"
+                                  : "Fawry Reference Code"}
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(String(activeFawryCode));
+                                  setCopiedFawry(true);
+                                  setTimeout(() => setCopiedFawry(false), 2000);
+                                }}
+                                className="text-xs font-bold px-2 sm:px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 flex items-center gap-1 transition-colors shrink-0"
+                              >
+                                {copiedFawry ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                                <span>
+                                  {copiedFawry
+                                    ? isArabic
+                                      ? "تم النسخ"
+                                      : "Copied"
+                                    : isArabic
+                                    ? "نسخ الكود"
+                                    : "Copy"}
+                                </span>
+                              </button>
                             </div>
-                            <div className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
-                              <QRCodeSVG
-                                value={walletQrCode}
-                                size={180}
-                                level="H"
-                              />
+                            <div className="my-2 p-2.5 sm:p-3 rounded-xl bg-indigo-50/70 dark:bg-slate-950/70 border border-indigo-100 dark:border-indigo-900/40 max-w-full overflow-hidden">
+                              <p className="text-[clamp(1.15rem,5.5vw,1.85rem)] font-black text-indigo-700 dark:text-indigo-400 tracking-normal sm:tracking-wider font-mono select-all [overflow-wrap:anywhere] break-all text-center dir-ltr leading-tight">
+                                {activeFawryCode}
+                              </p>
                             </div>
                           </div>
-                        )}
-                      </>
-                    )}
+                        );
+                      }
 
-                    <div className="p-5 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 text-start space-y-3 relative overflow-hidden">
+                      return (
+                        <>
+                          <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Phone className="w-6 h-6 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+                          </div>
+                          <h4 className="text-indigo-900 dark:text-indigo-100 font-bold mb-4 text-sm sm:text-base">
+                            {isArabic
+                              ? "بانتظار التأكيد من المحفظة"
+                              : "Pending Wallet Confirmation"}
+                          </h4>
+
+                          {walletQrCode && (
+                            <div className="flex flex-col items-center justify-center mb-6 p-3 sm:p-5 bg-white dark:bg-slate-900 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/80 w-full max-w-[240px] mx-auto shadow-md relative overflow-hidden">
+                              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-400 to-indigo-600"></div>
+                              <div className="flex items-center gap-1.5 mb-3 text-indigo-900 dark:text-indigo-100 font-bold text-xs sm:text-sm bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full text-center">
+                                <QrCode className="w-3.5 h-3.5 shrink-0" />
+                                <span>
+                                  {isArabic
+                                    ? "امسح الكود عبر محفظتك"
+                                    : "Scan via Wallet App"}
+                                </span>
+                              </div>
+                              <div className="p-2 sm:p-3 bg-white rounded-xl border border-slate-100 shadow-sm max-w-full">
+                                <QRCodeSVG
+                                  value={walletQrCode}
+                                  size={140}
+                                  level="H"
+                                  className="max-w-full h-auto"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+
+                    <div className="p-4 sm:p-5 rounded-xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 text-start space-y-3 relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-bl-[100px] pointer-events-none"></div>
 
                       <h4 className="text-sm font-black text-amber-500 mb-2 flex items-center gap-2">
@@ -795,11 +1070,11 @@ export default function PaymentPage({ overrideParams, onClose }) {
                         {isArabic ? "الدفع قيد الانتظار!" : "Payment Pending!"}
                       </h4>
 
-                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider shrink-0">
                           {isArabic ? "المرجع" : "Reference"}
                         </span>
-                        <span className="text-sm font-mono font-bold text-slate-800 dark:text-slate-200">
+                        <span className="text-xs sm:text-sm font-mono font-bold text-slate-800 dark:text-slate-200 break-all text-end">
                           {directResult.transactionId &&
                           !String(directResult.transactionId).match(/[a-z]/i)
                             ? `#${directResult.transactionId}`
@@ -815,11 +1090,11 @@ export default function PaymentPage({ overrideParams, onClose }) {
                                 : ""}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider shrink-0">
                           {isArabic ? "طريقة الدفع" : "Payment Method"}
                         </span>
-                        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 text-end">
                           {directResult.invoiceInfo?.payment_method ||
                             directResult.method?.name_ar ||
                             (isArabic ? "أونلاين" : "Online")}
@@ -833,14 +1108,14 @@ export default function PaymentPage({ overrideParams, onClose }) {
                           user?.phone;
                         if (!phoneStr) return null;
                         return (
-                          <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                            <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                          <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider shrink-0">
                               {isArabic
                                 ? "رقم الهاتف المحول منه"
                                 : "Payer Phone Number"}
                             </span>
                             <span
-                              className="text-sm font-bold text-slate-800 dark:text-slate-200"
+                              className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200"
                               dir="ltr"
                             >
                               {phoneStr}
@@ -848,61 +1123,83 @@ export default function PaymentPage({ overrideParams, onClose }) {
                           </div>
                         );
                       })()}
-                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider shrink-0">
                           {isArabic ? "تاريخ الإنشاء" : "Date Created"}
                         </span>
-                        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 text-end">
                           {new Date().toLocaleDateString(
                             isArabic ? "ar-EG-u-nu-latn" : "en-US",
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
-                        <span className="text-xs text-rose-500 dark:text-rose-400 font-bold uppercase tracking-wider">
-                          {isArabic ? "وقت انتهاء الدفع" : "Payment Expiry"}
+                      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800 gap-2">
+                        <span className="text-xs text-rose-500 dark:text-rose-400 font-bold uppercase tracking-wider shrink-0">
+                          {isArabic ? "حالة الدفع" : "Payment Status"}
                         </span>
-                        <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                          {directResult.paymentData?.fawryCode ? (
-                            directResult.paymentData?.expireDate ? (
-                              new Date(
-                                directResult.paymentData.expireDate,
-                              ).toLocaleString(
-                                isArabic ? "ar-EG-u-nu-latn" : "en-US",
-                                { dateStyle: "short", timeStyle: "short" },
-                              )
-                            ) : (
-                              new Date(
-                                new Date(
-                                  directResult.createdAt || Date.now(),
-                                ).getTime() +
-                                  2 * 24 * 60 * 60 * 1000,
-                              ).toLocaleString(
-                                isArabic ? "ar-EG-u-nu-latn" : "en-US",
-                                { dateStyle: "short", timeStyle: "short" },
-                              )
-                            )
-                          ) : (
-                            <WalletCountdown
-                              expireDate={
+                        <span className="text-xs sm:text-sm font-bold text-rose-600 dark:text-rose-400 text-end">
+                          {(() => {
+                            const isFawry = Boolean(
+                              directResult.paymentData?.fawryCode ||
+                              directResult.method?.payment_method_id === 3
+                            );
+
+                            if (isFawry) {
+                              const fawryExpire =
                                 directResult.paymentData?.expireDate ||
+                                directResult.paymentData?.expirationTime ||
+                                directResult.paymentData?.expire_date ||
+                                directResult.paymentData?.expiryDate ||
+                                directResult.paymentData?.payment_data?.expireDate ||
+                                directResult.paymentData?.payment_data?.expirationTime ||
+                                directResult.invoiceInfo?.payment_data?.expireDate ||
+                                directResult.invoiceInfo?.expireDate;
+
+                              return fawryExpire ? (
+                                new Date(fawryExpire).toLocaleString(
+                                  isArabic ? "ar-EG-u-nu-latn" : "en-US",
+                                  { dateStyle: "short", timeStyle: "short" },
+                                )
+                              ) : (
+                                new Date(
+                                  new Date(
+                                    directResult.createdAt || Date.now(),
+                                  ).getTime() +
+                                    2 * 24 * 60 * 60 * 1000,
+                                ).toLocaleString(
+                                  isArabic ? "ar-EG-u-nu-latn" : "en-US",
+                                  { dateStyle: "short", timeStyle: "short" },
+                                )
+                              );
+                            }
+
+                            // Mobile Wallets (4-minute validity window as per Fawaterak / Meeza response)
+                            const walletExpire =
+                              directResult.paymentData?.expireDate ||
+                              directResult.paymentData?.expire_date ||
+                              directResult.paymentData?.expirationTime ||
+                              directResult.paymentData?.expiryDate ||
+                              directResult.paymentData?.payment_data?.expireDate ||
+                              directResult.paymentData?.payment_data?.expire_date ||
+                              directResult.paymentData?.payment_data?.expirationTime ||
+                              directResult.invoiceInfo?.payment_data?.expireDate ||
+                              directResult.invoiceInfo?.payment_data?.expire_date ||
+                              directResult.invoiceInfo?.payment_data?.expirationTime ||
+                              directResult.invoiceInfo?.expireDate ||
+                              new Date(
                                 new Date(
                                   directResult.createdAt || Date.now(),
                                 ).getTime() +
-                                  5 * 60 * 1000
-                              }
-                              isArabic={isArabic}
-                              onExpire={async () => {
-                                try {
-                                  if (directResult.intentKey)
-                                    await api.payment.cancel(
-                                      directResult.intentKey,
-                                    );
-                                } catch (err) {}
-                                setDirectResult(null);
-                              }}
-                            />
-                          )}
+                                  4 * 60 * 1000,
+                              );
+
+                            return (
+                              <WalletCountdown
+                                expireDate={walletExpire}
+                                isArabic={isArabic}
+                              />
+                            );
+                          })()}
                         </span>
                       </div>
                       <div className="flex justify-between items-center pt-1">
@@ -1047,6 +1344,9 @@ export default function PaymentPage({ overrideParams, onClose }) {
                             await api.payment.cancel(directResult.intentKey);
                             setDirectResult(null);
                             setSelectedMethod(null);
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.delete("intentKey");
+                            window.history.replaceState({}, "", newUrl.toString());
                           } catch (err) {
                             setError(
                               isArabic
@@ -1084,7 +1384,7 @@ export default function PaymentPage({ overrideParams, onClose }) {
       dir={isArabic ? "rtl" : "ltr"}
     >
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-30">
+      <header className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-30">
         <GlobalLogo />
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
           <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -1096,9 +1396,9 @@ export default function PaymentPage({ overrideParams, onClose }) {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 sm:py-10">
+      <main className="max-w-6xl mx-auto px-3.5 sm:px-4 py-5 sm:py-10">
         {/* Title */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl mb-3 shadow-inner">
             <CreditCard className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
           </div>
@@ -1115,12 +1415,12 @@ export default function PaymentPage({ overrideParams, onClose }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Right Column: Order Summary (col-span-4) */}
           <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border-2 border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border-2 border-slate-100 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none">
               <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
                 {isArabic ? "ملخص الطلب" : "Order Summary"}
               </h3>
 
-              <div className="space-y-4 mb-6">
+              <div className="space-y-4 mb-4">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     {paymentType === "subscription"
@@ -1134,7 +1434,7 @@ export default function PaymentPage({ overrideParams, onClose }) {
                   <span className="text-sm font-bold text-slate-900 dark:text-white">
                     {paymentType === "subscription"
                       ? planName
-                      : orderNumber || `#${orderId?.slice(-6).toUpperCase()}`}
+                      : orderNumber || (orderId ? `#${orderId?.slice(-6).toUpperCase()}` : "")}
                   </span>
                 </div>
                 {paymentType === "subscription" && (
@@ -1159,29 +1459,78 @@ export default function PaymentPage({ overrideParams, onClose }) {
                 )}
               </div>
 
-              {/* USER INFO BLOCK */}
-              {user && (
-                <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-4 mb-6 border border-slate-100 dark:border-slate-800">
+              {/* Itemized Products from DB */}
+              {invoice?.items && invoice.items.length > 0 && (
+                <div className="border-t border-b border-slate-100 dark:border-slate-800 py-3 my-3 space-y-2">
+                  <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">
+                    {isArabic ? "المنتجات المطلوبة" : "Ordered Items"}
+                  </span>
+                  {invoice.items.map((item, idx) => {
+                    const itemName = typeof item.name === "object" ? (item.name[isArabic ? "ar" : "en"] || item.name.ar || item.name.en) : item.name;
+                    return (
+                      <div key={idx} className="flex justify-between items-center text-xs">
+                        <div className="flex items-center gap-1.5 truncate max-w-[70%]">
+                          <span className="font-bold text-slate-700 dark:text-slate-300 truncate">{itemName}</span>
+                          <span className="text-slate-400 font-mono">×{item.quantity}</span>
+                        </div>
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {formatMoney(item.price * item.quantity)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pricing Breakdown from DB */}
+              {(invoice?.originalAmount != null || invoice?.shippingCost != null || invoice?.discount > 0) && (
+                <div className="space-y-2 text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+                  {invoice?.originalAmount != null && (
+                    <div className="flex justify-between">
+                      <span>{isArabic ? "المجموع الفرعي" : "Subtotal"}</span>
+                      <span className="font-mono">{formatMoney((invoice.originalAmount || amount) - (invoice.shippingCost || 0) + (invoice.discount || 0))}</span>
+                    </div>
+                  )}
+                  {invoice?.shippingCost != null && Number(invoice.shippingCost) > 0 && (
+                    <div className="flex justify-between">
+                      <span>{isArabic ? "الشحن والتوصيل" : "Shipping"}</span>
+                      <span className="font-mono">{formatMoney(invoice.shippingCost)}</span>
+                    </div>
+                  )}
+                  {invoice?.discount != null && Number(invoice.discount) > 0 && (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span>{isArabic ? "قيمة الخصم" : "Discount"}</span>
+                      <span className="font-mono">- {formatMoney(invoice.discount)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* CUSTOMER & DELIVERY INFO FROM DATABASE */}
+              {(invoice?.customer || user) && (
+                <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-4 mb-4 border border-slate-100 dark:border-slate-800">
                   <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5" />
-                    {isArabic ? "بيانات العميل" : "Customer Details"}
+                    {isArabic ? "بيانات العميل والتوصيل" : "Customer & Delivery Details"}
                   </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-200">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
                       <span className="font-bold truncate">
-                        {user.name || user.firstName + " " + user.lastName}
+                        {invoice?.customer?.name || user?.name || user?.firstName + " " + user?.lastName}
                       </span>
                     </div>
-                    {user.email && (
+                    {(invoice?.customer?.phone || user?.phone) && (
                       <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
-                        <FileText className="w-3.5 h-3.5 text-indigo-500" />
-                        <span className="truncate">{user.email}</span>
+                        <Phone className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                        <span dir="ltr">{invoice?.customer?.phone || user?.phone}</span>
                       </div>
                     )}
-                    {user.phone && (
-                      <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
-                        <Phone className="w-3.5 h-3.5 text-indigo-500" />
-                        <span dir="ltr">{user.phone}</span>
+                    {invoice?.customer?.address && (
+                      <div className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50">
+                        <span className="leading-relaxed">
+                          {invoice.customer.city ? `${invoice.customer.city} - ` : ""}
+                          {invoice.customer.address}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1213,14 +1562,8 @@ export default function PaymentPage({ overrideParams, onClose }) {
                   {isArabic ? "اختر طريقة الدفع" : "Select Payment Method"}
                 </h3>
 
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
                   {[...methods]
-                    .filter(
-                      (m) =>
-                        !iframeUrl ||
-                        selectedMethod?.payment_method_id ===
-                          m.payment_method_id,
-                    )
                     .sort((a, b) => {
                       const getWeight = (m) => {
                         if (isWalletMethod(m)) return 1;
@@ -1243,43 +1586,38 @@ export default function PaymentPage({ overrideParams, onClose }) {
                         name = isArabic ? "محفظة إلكترونية" : "Mobile Wallet";
                       const isWallet = isWalletMethod(method);
 
+                      const isDisabled = Boolean(
+                        (iframeUrl || directResult) && !isSelected
+                      );
+
                       return (
                         <button
                           key={method.payment_method_id}
                           type="button"
+                          disabled={isDisabled}
                           onClick={() => {
-                            const pendingMethodId =
-                              directResult?.method?.payment_method_id ||
-                              directResult?.paymentMethodId;
-                            if (
-                              directResult &&
-                              pendingMethodId !== method.payment_method_id
-                            )
-                              return;
-                            if (isSelected && !directResult) {
+                            if (isDisabled) return;
+                            if (isSelected && !directResult && !iframeUrl) {
                               setSelectedMethod(null);
                               setIframeUrl(null);
                               setError("");
                               return;
                             }
-                            if (!directResult) {
+                            if (!directResult && !iframeUrl) {
                               setSelectedMethod(method);
                               setError("");
                               setIframeUrl(null);
                             }
                           }}
-                          className={`flex-1 flex flex-col items-center justify-center p-5 sm:p-6 rounded-2xl border-2 transition-all duration-300 overflow-hidden ${
+                          className={`flex flex-col items-center justify-center p-3.5 sm:p-5 rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
                             isSelected
-                              ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-900/20 shadow-lg shadow-indigo-600/10 ring-2 ring-indigo-600/20 scale-[1.03]"
-                              : directResult &&
-                                  (directResult.method?.payment_method_id ||
-                                    directResult.paymentMethodId) !==
-                                    method.payment_method_id
+                              ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-900/20 shadow-md ring-2 ring-indigo-600/30 dark:ring-indigo-500/40 sm:scale-[1.02]"
+                              : isDisabled
                                 ? "opacity-50 cursor-not-allowed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 grayscale"
                                 : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                           }`}
                         >
-                          <div className="w-16 h-14 mb-3 flex items-center justify-center shrink-0">
+                          <div className="w-14 h-12 sm:w-16 sm:h-14 mb-2 flex items-center justify-center shrink-0">
                             {method.logo ? (
                               <img
                                 src={method.logo}
@@ -1291,17 +1629,17 @@ export default function PaymentPage({ overrideParams, onClose }) {
                               />
                             ) : isWallet ? (
                               <Wallet
-                                className={`w-10 h-10 ${isSelected ? "text-indigo-600" : "text-slate-400"}`}
+                                className={`w-8 h-8 sm:w-10 sm:h-10 ${isSelected ? "text-indigo-600" : "text-slate-400"}`}
                               />
                             ) : (
                               <CreditCard
-                                className={`w-10 h-10 ${isSelected ? "text-indigo-600" : "text-slate-400"}`}
+                                className={`w-8 h-8 sm:w-10 sm:h-10 ${isSelected ? "text-indigo-600" : "text-slate-400"}`}
                               />
                             )}
                           </div>
                           <div className="text-center w-full">
                             <p
-                              className={`font-bold leading-tight mb-1 line-clamp-2 transition-colors ${isSelected ? "text-base sm:text-lg text-indigo-700 dark:text-indigo-300" : "text-sm sm:text-base text-slate-700 dark:text-slate-300"}`}
+                              className={`font-bold leading-tight line-clamp-2 transition-colors ${isSelected ? "text-sm sm:text-base text-indigo-700 dark:text-indigo-300" : "text-xs sm:text-sm text-slate-700 dark:text-slate-300"}`}
                             >
                               {name}
                             </p>
@@ -1321,19 +1659,56 @@ export default function PaymentPage({ overrideParams, onClose }) {
                       exit={{ opacity: 0, height: 0, y: -10 }}
                       className="overflow-hidden mb-6"
                     >
-                      <div className="p-5 sm:p-6 bg-white dark:bg-slate-900/80 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none mt-2">
+                      <div className="p-4 sm:p-6 bg-white dark:bg-slate-900/80 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none mt-2">
                         {/* Iframe for Visa/Mastercard (Visible after Pay) */}
                         {isCardMethod(selectedMethod) && iframeUrl && (
-                          <div
-                            className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-inner"
-                            style={{ height: "650px" }}
-                          >
-                            <iframe
-                              src={iframeUrl}
-                              className="w-full h-full border-0"
-                              allowFullScreen
-                              title="Secure Payment Portal"
-                            />
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                              <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                                <CreditCard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                <span>{isArabic ? "بوابة الدفع البنكي المشفرة" : "Secure Bank Checkout"}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (activeCardIntentKey) {
+                                    api.payment.cancel(activeCardIntentKey).catch(() => {});
+                                  }
+                                  setIframeUrl(null);
+                                  setActiveCardIntentKey(null);
+                                }}
+                                className="text-xs font-bold text-rose-600 hover:text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1.5"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                <span>{isArabic ? "إلغاء واختيار طريقة أخرى" : "Cancel & Change Method"}</span>
+                              </button>
+                            </div>
+                            <div
+                              className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-inner"
+                              style={{ height: "650px" }}
+                            >
+                              <iframe
+                                src={iframeUrl}
+                                className="w-full h-full border-0"
+                                allowFullScreen
+                                title="Secure Payment Portal"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Card Info before Pay */}
+                        {isCardMethod(selectedMethod) && !iframeUrl && !directResult && (
+                          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-2 text-start mb-2">
+                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                              <ShieldCheck className="w-4 h-4" />
+                              <span>{isArabic ? "الدفع الآمن عبر البطاقات البنكية" : "Secure Card Payment"}</span>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                              {isArabic
+                                ? "عند الضغط على تأكيد ودفع، سيتم فتح بوابة الدفع البنكي المشفرة والآمنة (3D-Secure) الخاصة بفيزا وماستركارد وميزة لإتمام السداد."
+                                : "Upon clicking confirm and pay, the secure 3D-Secure bank portal for Visa, Mastercard, and Meeza will open to complete payment."}
+                            </p>
                           </div>
                         )}
 
@@ -1377,6 +1752,7 @@ export default function PaymentPage({ overrideParams, onClose }) {
                             </div>
                             <input
                               type="tel"
+                              inputMode="numeric"
                               value={walletNumber}
                               onChange={(e) =>
                                 setWalletNumber(
@@ -1388,7 +1764,7 @@ export default function PaymentPage({ overrideParams, onClose }) {
                               placeholder="01XXXXXXXXX"
                               dir="ltr"
                               maxLength={11}
-                              className={`w-full bg-slate-50 dark:bg-slate-950 border-2 rounded-xl px-4 py-3.5 text-slate-900 dark:text-white text-start text-base font-mono tracking-wider focus:outline-none transition-all shadow-inner ${
+                              className={`w-full bg-slate-50 dark:bg-slate-950 border-2 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-start text-base font-mono tracking-wider focus:outline-none transition-all shadow-inner ${
                                 walletNumber.length === 11
                                   ? isWalletValid
                                     ? "border-emerald-500 focus:border-emerald-600 focus:ring-4 ring-emerald-500/10"

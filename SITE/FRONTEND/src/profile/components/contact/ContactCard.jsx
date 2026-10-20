@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { motion } from "motion/react";
 import { useLanguage } from "../../lib/LanguageContext.jsx";
+import { usePortfolio } from "../../lib/PortfolioContext.jsx";
+import { trackClick } from "../../services/portfolioService.js";
 
 export default function ContactCard({
   icon,
@@ -14,6 +16,13 @@ export default function ContactCard({
 }) {
   const [copied, setCopied] = useState(false);
   const { t } = useLanguage();
+  const { profile } = usePortfolio();
+
+  const handleLinkClick = () => {
+    if (profile?.id && href) {
+      trackClick(profile.id, href).catch(() => {});
+    }
+  };
 
   const handleCopy = (event) => {
     event.preventDefault();
@@ -82,6 +91,7 @@ export default function ContactCard({
         href={href}
         target={href.startsWith("http") ? "_blank" : undefined}
         rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+        onClick={handleLinkClick}
         data-track-click="true"
         data-track-type="contact"
         data-track-section="contact"

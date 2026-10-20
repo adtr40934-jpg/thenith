@@ -24,6 +24,7 @@ import {
   Loader2,
   ArrowRight,
   Home,
+  RefreshCw,
 } from "lucide-react";
 import api from "../api/index.js";
 import GlobalLogo from "../components/GlobalLogo.jsx";
@@ -31,10 +32,12 @@ import { useGlobalLanguage } from "../context/GlobalLanguageContext.jsx";
 import ErrorNotice from "../components/ErrorNotice.jsx";
 import { getLocalizedErrorMessage } from "../utils/errorHandling.js";
 import { useCart } from "../context/CartContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function PaymentResultPage() {
   const { language } = useGlobalLanguage();
   const { clearCart } = useCart();
+  const { refreshSession } = useAuth();
   const isArabic = language === "ar" || !language;
   const location = useLocation();
   const navigate = useNavigate();
@@ -42,6 +45,11 @@ export default function PaymentResultPage() {
 
   const type = searchParams.get("type"); // "subscription" | "order"
   const id = searchParams.get("id"); // subscription or order MongoDB ID
+  const intentKeyParam =
+    searchParams.get("intentKey") ||
+    searchParams.get("invoice_key") ||
+    searchParams.get("intent_key") ||
+    "";
 
   // Determine result from path
   const path = location.pathname;
@@ -57,54 +65,60 @@ export default function PaymentResultPage() {
   const [transactionData, setTransactionData] = useState(null);
   const [paymentTypeState, setPaymentTypeState] = useState(type);
 
+  const verifyKey = intentKeyParam || id || "";
+
+  const runVerification = async (isRetry = false) => {
+    // If we are inside an iframe (like the Visa 3DS modal), break out immediately!
+    if (window !== window.top) {
+      window.top.location.href = window.location.href;
+      return;
+    }
+
+    setVerifying(true);
+    setVerifyError("");
+
+    try {
+      const result = await api.payment.verify(verifyKey);
+      if (result.success && result.status === "paid") {
+        setVerified(true);
+        if (result.type) setPaymentTypeState(result.type);
+        if (result.orderNumber) setOrderNumber(result.orderNumber);
+        if (result.type === "store" || result.type === "order") clearCart();
+
+        setTransactionData({
+          intentKey: result.intentKey,
+          transactionId: result.transactionId || result.intentKey,
+          amount: result.amount,
+          paymentMethodName: result.paymentMethodName,
+        });
+
+        // The backend has confirmed the payment! Refresh session so Pro plan is immediately active in AuthContext!
+        try {
+          await refreshSession();
+        } catch {}
+      } else {
+        setVerifyError(
+          result.message ||
+            (isArabic
+              ? "لم يتم تأكيد الدفع بعد من بوابة الدفع. يرجى الانتظار ثم إعادة المحاولة."
+              : "Payment not confirmed yet. Check transaction details or try again."),
+        );
+      }
+    } catch (err) {
+      setVerifyError(getLocalizedErrorMessage(err, language));
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   useEffect(() => {
-    if (!isSuccess || !id) {
+    if (!isSuccess) {
       setVerifying(false);
       return;
     }
 
-    const verify = async () => {
-      // If we are inside an iframe (like the Visa 3DS modal), break out immediately!
-      if (window !== window.top) {
-        window.top.location.href = window.location.href;
-        return; // The top window will reload and take over
-      }
-
-      try {
-        const result = await api.payment.verify(id);
-        if (result.success && result.status === "paid") {
-          setVerified(true);
-          if (result.type) setPaymentTypeState(result.type);
-          if (result.orderNumber) setOrderNumber(result.orderNumber);
-          if (result.type === "store" || result.type === "order") clearCart();
-
-          setTransactionData({
-            intentKey: result.intentKey,
-            transactionId: result.transactionId || result.intentKey,
-            amount: result.amount,
-            paymentMethodName: result.paymentMethodName,
-          });
-
-          if (result.type === "subscription") {
-            try {
-              await api.auth.session();
-            } catch {}
-          }
-        } else {
-          setVerifyError(
-            isArabic
-              ? "لم يتم تأكيد الدفع بعد. تحقق من طلباتك."
-              : "Payment not confirmed yet. Check your orders.",
-          );
-        }
-      } catch (err) {
-        setVerifyError(getLocalizedErrorMessage(err, language));
-      } finally {
-        setVerifying(false);
-      }
-    };
-    verify();
-  }, [isSuccess, id]);
+    runVerification();
+  }, [isSuccess, verifyKey]);
 
   // Handle countdown and navigation
   useEffect(() => {
@@ -158,7 +172,7 @@ export default function PaymentResultPage() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
         <p className="text-slate-600 dark:text-slate-300 font-medium text-sm">
-          {isArabic ? "جاري التحقق من الدفع..." : "Verifying payment..."}
+          {isArabic ? "جاري التحقق من الدفع مع السيرفر..." : "Verifying payment with server..."}
         </p>
       </div>
     );
@@ -176,34 +190,61 @@ export default function PaymentResultPage() {
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 p-10 max-w-md w-full text-center"
+          className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 p-8 sm:p-10 max-w-md w-full text-center"
           dir={isArabic ? "rtl" : "ltr"}
         >
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white mb-3">
+          {verified && !verifyError ? (
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-emerald-100 dark:bg-emerald-950/60 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-emerald-50 dark:ring-emerald-900/20">
+              <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-600 dark:text-emerald-400" />
+            </div>
+          ) : (
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-amber-100 dark:bg-amber-950/60 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-amber-50 dark:ring-amber-900/20">
+              <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-amber-600 dark:text-amber-400" />
+            </div>
+          )}
+
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-3">
             {verified
               ? isArabic
-                ? "تم تأكيد الدفع"
-                : "Payment Confirmed"
+                ? "تم تأكيد الدفع بنجاح 🎉"
+                : "Payment Confirmed Successfully 🎉"
               : isArabic
-                ? "جاري معالجة دفعتك"
-                : "Processing your payment"}
+                ? "جاري تأكيد حالة الدفع"
+                : "Confirming Payment Status"}
           </h1>
 
           {verifyError ? (
-            <ErrorNotice
-              error={verifyError}
-              language={language}
-              className="mb-6 text-start"
-            />
+            <div className="space-y-4 mb-6">
+              <ErrorNotice
+                error={verifyError}
+                language={language}
+                className="text-start"
+              />
+              <button
+                type="button"
+                onClick={() => runVerification(true)}
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors shadow-sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>{isArabic ? "التحقق من حالة الدفع الآن" : "Check Payment Status Now"}</span>
+              </button>
+              <Link
+                to="/u"
+                className="flex items-center justify-center gap-2 w-full py-2.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white text-xs font-bold transition-colors"
+              >
+                <Home className="w-4 h-4" />
+                <span>{isArabic ? "العودة للوحة التحكم" : "Back to Dashboard"}</span>
+              </Link>
+            </div>
           ) : (
             <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
               {paymentTypeState === "subscription"
                 ? isArabic
-                  ? "تم تفعيل اشتراكك بنجاح. استمتع بجميع المميزات الاحترافية!"
-                  : "Your subscription has been activated successfully!"
+                  ? "تم تفعيل اشتراكك بنجاح في باقة Pro! استمتع بجميع المميزات المتقدمة."
+                  : "Your Pro subscription has been activated successfully!"
                 : isArabic
-                  ? `تم استلام طلبك${orderNumber ? ` #${orderNumber}` : ""} وسيتم التواصل معك قريباً.`
-                  : `Your order${orderNumber ? ` #${orderNumber}` : ""} has been received!`}
+                  ? `تم تأكيد دفع طلبك${orderNumber ? ` #${orderNumber}` : ""} بنجاح.`
+                  : `Your order${orderNumber ? ` #${orderNumber}` : ""} has been confirmed!`}
             </p>
           )}
 
@@ -231,30 +272,6 @@ export default function PaymentResultPage() {
                     (isArabic ? "أونلاين" : "Online")}
                 </span>
               </div>
-              {(() => {
-                const phoneStr =
-                  transactionData.user?.phone ||
-                  transactionData.providerResponse?.invoice_info
-                    ?.customerMobile ||
-                  transactionData.providerResponse?.payment_data
-                    ?.customerMobile;
-                if (!phoneStr) return null;
-                return (
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      {isArabic
-                        ? "رقم الهاتف المحول منه"
-                        : "Payer Phone Number"}
-                    </span>
-                    <span
-                      className="text-sm font-bold text-slate-700 dark:text-slate-300"
-                      dir="ltr"
-                    >
-                      {phoneStr}
-                    </span>
-                  </div>
-                );
-              })()}
               <div className="flex justify-between items-center pt-1">
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {isArabic ? "المبلغ المدفوع" : "Amount Paid"}
@@ -266,14 +283,30 @@ export default function PaymentResultPage() {
             </div>
           )}
 
-          {!verifyError && (
-            <div className="flex items-center justify-center gap-2 mt-4 text-emerald-600 dark:text-emerald-400 text-sm font-bold">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <p>
-                {isArabic
-                  ? `سيتم توجيهك تلقائياً خلال ${countdown} ثواني...`
-                  : `Redirecting you automatically in ${countdown} seconds...`}
-              </p>
+          {!verifyError && verified && (
+            <div className="space-y-3 mt-4">
+              <div className="flex items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm font-bold">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <p>
+                  {isArabic
+                    ? `سيتم توجيهك تلقائياً خلال ${countdown} ثوانٍ...`
+                    : `Redirecting you automatically in ${countdown} seconds...`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (paymentTypeState === "order" || paymentTypeState === "store") {
+                    navigate("/products", { replace: true });
+                  } else {
+                    navigate("/u", { replace: true });
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-colors flex items-center justify-center gap-2 active:scale-95"
+              >
+                <span>{isArabic ? "الانتقال إلى لوحة التحكم الآن" : "Go to Dashboard Now"}</span>
+                <ArrowRight className={`w-4 h-4 ${isArabic ? "rotate-180" : ""}`} />
+              </button>
             </div>
           )}
         </motion.div>
@@ -329,6 +362,59 @@ export default function PaymentResultPage() {
   }
 
   // ── Pending ───────────────────────────────────────────────────────────────────
+  const isCardTx =
+    transactionData &&
+    (transactionData.paymentMethodId === 2 ||
+      /visa|mastercard|card|فيزا|ماستر|بطاقة/i.test(
+        transactionData.paymentMethodName || "",
+      ));
+
+  if (isPending && isCardTx) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-slate-50 dark:from-slate-950 dark:to-slate-900 flex flex-col items-center justify-center p-6">
+        <header className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
+          <GlobalLogo />
+        </header>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 p-10 max-w-md w-full text-center"
+          dir={isArabic ? "rtl" : "ltr"}
+        >
+          <div className="w-24 h-24 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <XCircle className="w-12 h-12 text-rose-500" />
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-3">
+            {isArabic ? "لم يكتمل الدفع بالبطاقة" : "Card Payment Incomplete"}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">
+            {isArabic
+              ? "لم يتم إتمام عملية الدفع بالبطاقة البنكية أو تم إلغاؤها. الدفع بالبطاقات البنكية إما أن يكتمل بنجاح أو ينتهي فوراً ولا يدعم وضع الانتظار."
+              : "Bank card payment was not completed or was cancelled. Card payments must succeed or terminate immediately and do not remain pending."}
+          </p>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => window.history.back()}
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors shadow-sm"
+            >
+              {isArabic ? "إعادة المحاولة" : "Try Again"}
+            </button>
+            <Link
+              to="/u"
+              className="flex items-center justify-center gap-2 w-full py-3 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white text-sm font-medium transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              {isArabic ? "لوحة التحكم" : "Dashboard"}
+            </Link>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-slate-50 dark:from-slate-950 dark:to-slate-900 flex flex-col items-center justify-center p-6">
       <header className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
@@ -350,8 +436,8 @@ export default function PaymentResultPage() {
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
           {isArabic
-            ? "طلبك تحت المعالجة. سيتم تفعيله تلقائياً عند اكتمال الدفع."
-            : "Your payment is being processed. It will activate automatically once confirmed."}
+            ? "طلبك تحت المعالجة (فوري / محفظة إلكترونية). سيتم تفعيله تلقائياً عند اكتمال الدفع."
+            : "Your payment is being processed (Fawry / Mobile Wallet). It will activate automatically once confirmed."}
         </p>
 
         {transactionData && (

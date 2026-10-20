@@ -8,10 +8,12 @@ import {
   ShieldCheck,
   ShoppingBag,
   ShoppingCart,
+  Sparkles,
 } from "lucide-react";
 import { useCart } from "../../context/CartContext";
 import api from "../../api/index.js";
 import { formatMoney, normalizeProduct } from "./storeApi.js";
+import { applyPageSeo, PRODUCTION_DOMAIN, getNotFoundSeoData } from "../../utils/seo.js";
 
 export default function ProductDetailsPage() {
   const { t, language } = useGlobalLanguage();
@@ -24,13 +26,79 @@ export default function ProductDetailsPage() {
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
+    if (!product && error) {
+      applyPageSeo(getNotFoundSeoData(language, "product"));
+      return;
+    }
+    if (product) {
+      const title = `${product.title} | Thenith Store`;
+      const description = product.description || "بطاقة Thenith الذكية الفاخرة المجهزة بتقنية NFC وQR.";
+      const canonicalUrl = `${PRODUCTION_DOMAIN}/products/${id}`;
+      const image = product.images?.[0] || `${PRODUCTION_DOMAIN}/icon512.png`;
+
+      const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": product.title,
+        "description": description,
+        "image": image,
+        "sku": id,
+        "offers": {
+          "@type": "Offer",
+          "url": canonicalUrl,
+          "priceCurrency": "EGP",
+          "price": product.price || 0,
+          "availability": "https://schema.org/InStock",
+        },
+      };
+
+      applyPageSeo({
+        title,
+        description,
+        canonicalUrl,
+        robots: "index, follow",
+        openGraph: {
+          title,
+          description,
+          url: canonicalUrl,
+          type: "product",
+          image,
+        },
+        twitter: {
+          card: "summary_large_image",
+          title,
+          description,
+          image,
+        },
+        jsonLd,
+        jsonLdId: "product",
+        breadcrumbs: [
+          { name: language === "en" ? "Home" : "الرئيسية", url: "/" },
+          { name: language === "en" ? "Products" : "المنتجات", url: "/products" },
+          { name: product.title, url: `/products/${id}` },
+        ],
+        lang: language,
+        dir: language === "ar" ? "rtl" : "ltr",
+      });
+    }
+  }, [product, error, id, language]);
+
+  useEffect(() => {
     window.scrollTo(0, 0);
     let mounted = true;
 
     api.products
       .get(id)
       .then((data) => {
-        if (mounted) setProduct(normalizeProduct(data.product, language));
+        if (mounted) {
+          const normalized = normalizeProduct(data.product, language);
+          const isCustom = Boolean(normalized.isCustomizable);
+          if (isCustom) {
+            navigate(`/custom-card?productId=${normalized.id}`, { replace: true });
+            return;
+          }
+          setProduct(normalized);
+        }
       })
       .catch(() => {
         if (mounted) setError(t("store.productNotFound"));
@@ -124,11 +192,10 @@ export default function ProductDetailsPage() {
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
-                    className={`shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${
-                      selectedImage === idx
+                    className={`shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition-all ${selectedImage === idx
                         ? "border-indigo-600 shadow-lg scale-105"
                         : "border-transparent opacity-60 hover:opacity-100 bg-slate-50"
-                    }`}
+                      }`}
                   >
                     <img
                       src={img}
@@ -176,29 +243,65 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  addToCart(product);
-                  navigate("/checkout");
-                }}
-                disabled={product.quantity <= 0}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {product.quantity > 0 ? t("store.buyNow") : t("store.inStock")}
-                <ArrowRight className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => addToCart(product)}
-                disabled={product.quantity <= 0}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition-colors hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t("store.addToCart")}
-                <ShoppingBag className="h-4 w-4" />
-              </button>
-            </div>
+            {(() => {
+              const isCustomCard = Boolean(product.isCustomizable);
+
+              if (isCustomCard) {
+                return (
+                  <div className="flex flex-col gap-3">
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-indigo-50 border border-indigo-100 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <Sparkles className="w-5 h-5 text-amber-300" />
+                      </div>
+                      <div className="text-xs text-slate-700 leading-relaxed font-medium">
+                        {language === "ar"
+                          ? "هذا المنتج يقبل التخصيص الكامل: عدّل اسمك، وظيفتك، لوجو شركتك، خلفية الكارت والخطوط مع معاينة فورية ثلاثية الأبعاد."
+                          : "This product supports full custom design: customize your name, job title, logo, card background, and fonts with live 3D preview."}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/custom-card?productId=${product.id}`)}
+                      className="flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 hover:from-black hover:to-indigo-900 px-6 py-4 text-base font-extrabold text-white shadow-xl hover:shadow-indigo-500/25 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer border border-indigo-500/30"
+                    >
+                      <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
+                      <span>
+                        {language === "ar"
+                          ? "ابدأ بتصميم وتخصيص كارتك الآن"
+                          : "Start Customizing Your Card Now"}
+                      </span>
+                      <ArrowRight className="h-5 w-5 rtl:rotate-180" />
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addToCart(product);
+                      navigate("/checkout");
+                    }}
+                    disabled={product.quantity <= 0}
+                    className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {product.quantity > 0 ? t("store.buyNow") : t("store.inStock")}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addToCart(product)}
+                    disabled={product.quantity <= 0}
+                    className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-800 transition-colors hover:border-indigo-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {t("store.addToCart")}
+                    <ShoppingBag className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })()}
           </motion.div>
         </div>
       </main>

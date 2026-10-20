@@ -16,15 +16,10 @@ async function cleanupCustomerServices() {
   return customerServiceIds.length;
 }
 
-async function startCustomerServiceCleanupJob() {
+function startCustomerServiceCleanupJob() {
   const run = async () => {
     try {
-      const deletedCount = await cleanupCustomerServices();
-      if (deletedCount) {
-        console.log(
-          `[Job:cleanupCustomerServices] Deleted ${deletedCount} old customerServices and their messages.`,
-        );
-      }
+      await cleanupCustomerServices();
     } catch (error) {
     }
   };
@@ -36,5 +31,5 @@ async function startCustomerServiceCleanupJob() {
 
 export default {
   cleanupCustomerServices,
-  startCustomerServiceCleanupJob
+  startCustomerServiceCleanupJob,
 };

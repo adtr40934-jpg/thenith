@@ -9,7 +9,7 @@ export default function ProfileActivityTracker() {
   useEffect(() => {
     if (profile?.id && !tracked.current) {
       tracked.current = true;
-      trackVisit(profile.id).catch(console.error);
+      trackVisit(profile.id).catch(() => {});
     }
   }, [profile?.id]);
 

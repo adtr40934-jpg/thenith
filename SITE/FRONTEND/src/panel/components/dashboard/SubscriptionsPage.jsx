@@ -80,7 +80,23 @@ export default function SubscriptionsPage({
           try {
             const pendingRes = await apiClient.get("/payment/pending", { headers });
             if (mounted && pendingRes.data?.success) {
-              const allPending = pendingRes.data.subscriptions || [];
+              const filterNonCard = (list) => (list || []).filter((s) => {
+                const tx = s.transaction || s;
+                const methodId = tx.paymentMethodId;
+                const name = `${tx.paymentMethodName || s.paymentMethod || ""}`.toLowerCase();
+                return (
+                  methodId !== 2 &&
+                  !name.includes("visa") &&
+                  !name.includes("mastercard") &&
+                  !name.includes("card") &&
+                  !name.includes("فيزا") &&
+                  !name.includes("بطاق")
+                );
+              });
+              const allPending = [
+                ...filterNonCard(pendingRes.data.subscriptions).map((s) => ({ ...s, type: "subscription" })),
+                ...filterNonCard(pendingRes.data.orders).map((o) => ({ ...o, type: "order" })),
+              ];
               setPendingPayments(allPending);
             }
           } catch (e) {
@@ -194,15 +210,16 @@ export default function SubscriptionsPage({
         });
         setShowCancelConfirm(false);
         // Notify bell notifications
-        window.dispatchEvent(new CustomEvent("dashboard-action", {
-          detail: {
-            type: "subscription_cancelled",
-            title: isArabic ? "تم إلغاء الاشتراك بنجاح" : "Subscription cancelled successfully",
-          },
-        }));
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        window.dispatchEvent(
+          new CustomEvent("dashboard-action", {
+            detail: {
+              type: "subscription_cancelled",
+              title: isArabic
+                ? "تم إلغاء الاشتراك بنجاح"
+                : "Subscription cancelled successfully",
+            },
+          }),
+        );
       } else {
         throw new Error(data.message || "فشل إلغاء الاشتراك");
       }
@@ -237,13 +254,13 @@ export default function SubscriptionsPage({
   }
 
   return (
-    <div className="space-y-8 pb-20 p-0 relative" dir={isArabic ? "rtl" : "ltr"}>
+    <div className="space-y-6 sm:space-y-8 pb-20 relative" dir={isArabic ? "rtl" : "ltr"}>
       {/* Section Header */}
-      <div className="text-center pt-4 pb-2">
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+      <div className="text-center pt-2 sm:pt-4 pb-2">
+        <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
           {t("subscriptionManagement")}
         </h1>
-        <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+        <p className="mt-2 sm:mt-3 text-slate-500 dark:text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
           {t("controlYourPlan")}
         </p>
       </div>
@@ -276,7 +293,7 @@ export default function SubscriptionsPage({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="relative bg-slate-900 rounded-[32px] p-8 md:p-10 shadow-2xl border border-slate-800 text-white overflow-hidden"
+            className="relative bg-slate-900 rounded-3xl sm:rounded-[32px] p-5 sm:p-8 md:p-10 shadow-2xl border border-slate-800 text-white overflow-hidden"
           >
             {/* Background Glow */}
             <div className="absolute -top-24 -end-24 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -332,12 +349,18 @@ export default function SubscriptionsPage({
                         </div>
                         <div>
                           <h4 className="font-black text-amber-200 text-base sm:text-lg">
-                            {isArabic ? "دفع اشتراك غير مكتمل" : "Incomplete Subscription Payment"}
+                            {item.type === "order"
+                              ? isArabic ? "طلب متجر بانتظار الدفع" : "Pending Store Order Payment"
+                              : isArabic ? "دفع اشتراك غير مكتمل" : "Incomplete Subscription Payment"}
                           </h4>
                           <p className="text-slate-300 text-xs sm:text-sm mt-1">
-                            {isArabic
-                              ? `لديك طلب اشتراك في باقة ${planName} قيد انتظار الدفع.`
-                              : `You have a pending subscription payment for ${planName} plan.`}
+                            {item.type === "order"
+                              ? isArabic
+                                ? `لديك طلب متجر #${item.orderNumber || item._id?.slice(-6).toUpperCase()} بمبلغ ${item.totalAmount || tx?.amount} ج.م بانتظار إتمام الدفع.`
+                                : `You have a pending store order #${item.orderNumber || item._id?.slice(-6).toUpperCase()} waiting for payment.`
+                              : isArabic
+                                ? `لديك طلب اشتراك في باقة ${planName} قيد انتظار الدفع.`
+                                : `You have a pending subscription payment for ${planName} plan.`}
                           </p>
                         </div>
                       </div>
@@ -371,15 +394,16 @@ export default function SubscriptionsPage({
                           onClick={() => {
                             const params = new URLSearchParams({
                               type: item.type || "subscription",
-                              planId: item.planId?._id || item.planId,
+                              ...(item.type === "order" ? { orderId: item._id } : { planId: item.planId?._id || item.planId }),
                               id: item._id,
-                              intentKey: tx?.intentKey
+                              intentKey: tx?.intentKey,
+                              billingPeriod: item.billingPeriod || tx?.paymentData?.targetBillingPeriod || "monthly",
                             });
                             window.location.href = `/payment?${params.toString()}`;
                           }}
                           className="w-1/2 sm:w-auto shrink-0 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl text-sm font-black transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
                         >
-                          <span>{isArabic ? " استكمال الدفع" : "Check Status"}</span>
+                          <span>{isArabic ? "استكمال الدفع" : "Complete Payment"}</span>
                           {isArabic ? <ArrowLeft className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                       </div>

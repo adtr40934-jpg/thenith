@@ -135,6 +135,8 @@ export default function PanelCheckout({ t, onBack }) {
         items: cart.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
+          customDesign: item.customDesign || null,
+          cartItemId: item.cartItemId || item.id,
         })),
         customer: {
           name: `${firstName} ${lastName}`.trim(),
@@ -148,6 +150,9 @@ export default function PanelCheckout({ t, onBack }) {
       });
 
       if (result?.orderId) {
+        try {
+          localStorage.removeItem("thenith_custom_card_studio_state_v2");
+        } catch (e) {}
         if (paymentMethod === "cash_on_delivery") {
           clearCart();
           setIsSuccess(true);
@@ -207,14 +212,14 @@ export default function PanelCheckout({ t, onBack }) {
         className="grid grid-cols-1 lg:grid-cols-12 gap-8"
       >
         <div className="lg:col-span-8 space-y-8">
-          <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">
+          <div className="bg-white dark:bg-slate-950 p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-5 sm:mb-6">
               {isArabic ? "تفاصيل الشحن" : "Shipping Details"}
             </h2>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 mb-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   {isArabic ? "الاسم الأول" : "First Name"}
                 </label>
                 <input
@@ -222,11 +227,11 @@ export default function PanelCheckout({ t, onBack }) {
                   type="text"
                   name="firstName"
                   defaultValue={user?.name?.split(" ")[0] || ""}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   {isArabic ? "الاسم الأخير" : "Last Name"}
                 </label>
                 <input
@@ -234,25 +239,25 @@ export default function PanelCheckout({ t, onBack }) {
                   type="text"
                   name="lastName"
                   defaultValue={user?.name?.split(" ").slice(1).join(" ") || ""}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 mb-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   {isArabic ? "البريد الإلكتروني" : "Email"}
                 </label>
                 <input
                   type="email"
                   name="email"
                   defaultValue={user?.email || ""}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   {isArabic ? "رقم الهاتف" : "Phone Number"}
                 </label>
                 <input
@@ -262,32 +267,32 @@ export default function PanelCheckout({ t, onBack }) {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   dir="ltr"
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 text-left"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-left transition-all"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 mb-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   {isArabic ? "الدولة" : "Country"}
                 </label>
                 <select
                   disabled
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 opacity-80 cursor-not-allowed"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 opacity-80 cursor-not-allowed"
                 >
                   <option value="EG">{isArabic ? "مصر" : "Egypt"}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   {isArabic ? "المحافظة / المدينة" : "Governorate"}
                 </label>
                 <select
                   required
                   value={selectedGovernorate}
                   onChange={handleGovernorateChange}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 >
                   <option value="" disabled>
                     {isArabic ? "اختر المحافظة" : "Select Governorate"}
@@ -302,7 +307,7 @@ export default function PanelCheckout({ t, onBack }) {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+              <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 {isArabic ? "العنوان بالتفصيل" : "Full Address"}
               </label>
               <textarea
@@ -311,12 +316,12 @@ export default function PanelCheckout({ t, onBack }) {
                 rows="3"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all"
               ></textarea>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+              <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 {isArabic ? "طريقة الدفع" : "Payment Method"}
               </label>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -368,14 +373,14 @@ export default function PanelCheckout({ t, onBack }) {
         </div>
 
         <div className="lg:col-span-4">
-          <div className="bg-white dark:bg-slate-950 rounded-[32px] p-6 border border-slate-200 dark:border-slate-800 shadow-sm sticky top-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">
+          <div className="bg-white dark:bg-slate-950 rounded-2xl sm:rounded-[32px] p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm sticky top-6">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-5 sm:mb-6">
               {isArabic ? "ملخص الطلب" : "Order Summary"}
             </h2>
 
             {/* Coupon Code */}
             <div className="mb-6">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+              <label className="block text-xs sm:text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 {isArabic ? "كوبون الخصم" : "Discount Coupon"}
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -395,12 +400,12 @@ export default function PanelCheckout({ t, onBack }) {
                     isArabic ? "أدخل كود الكوبون" : "Enter coupon code"
                   }
                   disabled={!!appliedCoupon}
-                  className={`flex-1 w-full bg-slate-50 dark:bg-slate-900 border rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 transition-colors ${
+                  className={`flex-1 w-full min-h-[44px] bg-slate-50 dark:bg-slate-900 border rounded-xl px-3.5 sm:px-4 py-2.5 text-base sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 transition-all ${
                     couponStatus === "valid"
-                      ? "border-emerald-400 focus:ring-emerald-500"
+                      ? "border-emerald-400 focus:ring-emerald-500/20"
                       : couponStatus === "invalid"
-                        ? "border-rose-400 focus:ring-rose-500"
-                        : "border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-indigo-500"
+                        ? "border-rose-400 focus:ring-rose-500/20"
+                        : "border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-indigo-500/20"
                   }`}
                 />
                 {appliedCoupon ? (
@@ -412,7 +417,7 @@ export default function PanelCheckout({ t, onBack }) {
                       setCouponStatus(null);
                       setCouponError("");
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-900/20 transition-colors whitespace-nowrap"
+                    className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 text-sm font-bold rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-900/20 transition-colors whitespace-nowrap"
                   >
                     {isArabic ? "إزالة" : "Remove"}
                   </button>
@@ -421,7 +426,7 @@ export default function PanelCheckout({ t, onBack }) {
                     type="button"
                     onClick={handleApplyCoupon}
                     disabled={couponStatus === "checking" || !couponCode.trim()}
-                    className="w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-xl bg-slate-900 dark:bg-slate-700 text-white hover:bg-indigo-600 dark:hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 text-sm font-bold rounded-xl bg-slate-900 dark:bg-slate-700 text-white hover:bg-indigo-600 dark:hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                   >
                     {couponStatus === "checking"
                       ? "..."
@@ -489,7 +494,7 @@ export default function PanelCheckout({ t, onBack }) {
             <button
               type="submit"
               disabled={isSubmitting || cart.length === 0}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              className="w-full min-h-[48px] bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-base shadow-lg shadow-indigo-600/20 active:scale-[0.99]"
             >
               {isSubmitting ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

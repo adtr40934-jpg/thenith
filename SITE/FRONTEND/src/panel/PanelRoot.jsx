@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import Dashboard from "./components/Dashboard.jsx";
-import Auth from "./components/auth/Auth.jsx";
+const Dashboard = lazy(() => import("./components/Dashboard.jsx"));
+const Auth = lazy(() => import("./components/auth/Auth.jsx"));
 import { LanguageProvider, useLanguage } from "./hooks/useLanguage.jsx";
 import { ThemeProvider } from "./hooks/useTheme.jsx";
 import { ConfirmProvider } from "./context/ConfirmContext.jsx";
@@ -25,15 +25,15 @@ function AppContent({ forceMode }) {
   } = useAuth();
 
   useEffect(() => {
-    // Prevent iframe embedding
-    if (window.top !== window) {
-      window.top.location.href = window.location.href;
-      return;
-    }
-
     const path = location.pathname;
     if (isAuthenticated && user?.publicId) {
-      if (path === "/u" || path === "/u/") {
+      if (
+        path === "/u" ||
+        path === "/u/" ||
+        path === "/panel" ||
+        path === "/panel/" ||
+        path.startsWith("/panel")
+      ) {
         navigate(`/u/${user.publicId}${location.search || ""}`, {
           replace: true,
         });
@@ -98,20 +98,22 @@ function AppContent({ forceMode }) {
 
   return (
     <ConfirmProvider>
-      {!isAuthenticated ? (
-        <Auth
-          t={t}
-          language={language}
-          onLogin={handleLogin}
-          forceMode={forceMode}
-        />
-      ) : (
-        <Dashboard
-          user={user}
-          onLogout={handleLogout}
-          onDeleteAccount={handleDeleteAccount}
-        />
-      )}
+      <Suspense fallback={<LoadingScreen label={t("loading")} />}>
+        {!isAuthenticated ? (
+          <Auth
+            t={t}
+            language={language}
+            onLogin={handleLogin}
+            forceMode={forceMode}
+          />
+        ) : (
+          <Dashboard
+            user={user}
+            onLogout={handleLogout}
+            onDeleteAccount={handleDeleteAccount}
+          />
+        )}
+      </Suspense>
     </ConfirmProvider>
   );
 }

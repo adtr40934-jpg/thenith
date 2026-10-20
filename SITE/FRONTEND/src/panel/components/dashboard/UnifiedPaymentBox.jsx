@@ -136,6 +136,15 @@ export default function UnifiedPaymentBox({
               : "🎉 Payment confirmed successfully!"
           );
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          const targetType =
+            invoiceInfo?.order_type || paymentData?.type || "subscription";
+          const targetId =
+            invoiceInfo?.invoice_id || paymentData?.returnedId || "";
+          navigate(
+            `/payment/success?type=${targetType}&id=${targetId}&intentKey=${activeIntent}`,
+            { replace: true },
+          );
+          return;
         }
       } catch (err) {
         if (isManual) {
@@ -382,9 +391,11 @@ export default function UnifiedPaymentBox({
                 </button>
               </div>
 
-              <p className="text-4xl font-black text-indigo-700 dark:text-indigo-300 tracking-widest dir-ltr select-all my-2 font-mono drop-shadow-sm">
-                {ref}
-              </p>
+              <div className="my-2 p-2.5 sm:p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-indigo-200/70 dark:border-indigo-800/70 shadow-sm max-w-full overflow-hidden">
+                <p className="text-[clamp(1.15rem,5.5vw,1.65rem)] font-black text-indigo-700 dark:text-indigo-300 tracking-normal sm:tracking-wider dir-ltr select-all font-mono drop-shadow-sm [overflow-wrap:anywhere] break-all text-center leading-tight">
+                  {ref}
+                </p>
+              </div>
 
               {expiry && (
                 <div className="mt-2 bg-white/70 dark:bg-slate-900/60 rounded px-2.5 py-1.5 inline-flex items-center gap-1.5 border border-indigo-100 dark:border-indigo-900/50">
